@@ -637,16 +637,6 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 				Message: fmt.Sprintf("sync source repo %s is not permitted in project '%s'", syncSource.RepoURL, proj.Name),
 			})
 		}
-		// Validate that hydrate-to repo is permitted if it's different from dry source
-		if spec.SourceHydrator.HydrateTo != nil {
-			hydrateToSource := spec.GetHydrateToSource()
-			if hydrateToSource.RepoURL != spec.SourceHydrator.DrySource.RepoURL && !proj.IsSourcePermitted(hydrateToSource) {
-				conditions = append(conditions, argoappv1.ApplicationCondition{
-					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("hydrate-to repo %s is not permitted in project '%s'", hydrateToSource.RepoURL, proj.Name),
-				})
-			}
-		}
 	case spec.HasMultipleSources():
 		for _, source := range spec.Sources {
 			condition := validateSourcePermissions(source, spec.HasMultipleSources())

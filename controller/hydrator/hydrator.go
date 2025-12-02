@@ -491,14 +491,8 @@ func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, tar
 		manifestDetails[i] = &commitclient.HydratedManifestDetails{ManifestJSON: string(objJSON)}
 	}
 
-	// Use the hydrateTo path if set, otherwise use the syncSource path
-	destPath := app.Spec.SourceHydrator.SyncSource.Path
-	if app.Spec.SourceHydrator.HydrateTo != nil && app.Spec.SourceHydrator.HydrateTo.Path != "" {
-		destPath = app.Spec.SourceHydrator.HydrateTo.Path
-	}
-
 	return resp.Revision, &commitclient.PathDetails{
-		Path:      destPath,
+		Path:      app.Spec.SourceHydrator.SyncSource.Path,
 		Manifests: manifestDetails,
 		Commands:  resp.Commands,
 	}, nil

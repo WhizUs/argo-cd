@@ -244,6 +244,7 @@ func (spec *ApplicationSpec) GetSource() ApplicationSource {
 }
 
 // GetHydrateToSource returns the hydrateTo source if it exists, otherwise returns the sync source.
+// HydrateTo only specifies a different branch (TargetBranch), it uses the same repo and path as syncSource.
 func (spec *ApplicationSpec) GetHydrateToSource() ApplicationSource {
 	if spec.SourceHydrator != nil {
 		targetRevision := spec.SourceHydrator.SyncSource.TargetBranch
@@ -255,12 +256,6 @@ func (spec *ApplicationSpec) GetHydrateToSource() ApplicationSource {
 
 		if spec.SourceHydrator.HydrateTo != nil {
 			targetRevision = spec.SourceHydrator.HydrateTo.TargetBranch
-			if spec.SourceHydrator.HydrateTo.Path != "" {
-				path = spec.SourceHydrator.HydrateTo.Path
-			}
-			if spec.SourceHydrator.HydrateTo.RepoURL != "" {
-				repoURL = spec.SourceHydrator.HydrateTo.RepoURL
-			}
 		}
 		return ApplicationSource{
 			RepoURL:        repoURL,
@@ -474,18 +469,11 @@ type SyncSource struct {
 	Path string `json:"path" protobuf:"bytes,3,name=path"`
 }
 
-// HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to
-// the SyncSource. If RepoURL is not set, it defaults to SyncSource.RepoURL (or DrySource.RepoURL if SyncSource.RepoURL
-// is also not set). If Path is not set, it defaults to SyncSource.Path.
+// HydrateTo specifies a branch to which hydrated manifests should be pushed as a "staging area" before being moved to
+// the SyncSource. The repository and path are inherited from SyncSource.
 type HydrateTo struct {
-	// RepoURL is the URL to the git repository where hydrated manifests should be committed. If not set, defaults to
-	// SyncSource.RepoURL (or DrySource.RepoURL if SyncSource.RepoURL is also not set).
-	RepoURL string `json:"repoURL,omitempty" protobuf:"bytes,1,opt,name=repoURL"`
 	// TargetBranch is the branch to which hydrated manifests should be committed
-	TargetBranch string `json:"targetBranch" protobuf:"bytes,2,name=targetBranch"`
-	// Path is a directory path within the git repository where hydrated manifests should be committed. If not set,
-	// defaults to SyncSource.Path.
-	Path string `json:"path,omitempty" protobuf:"bytes,3,opt,name=path"`
+	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
 }
 
 // DeepEquals returns true if the HydrateTo is deeply equal to the given HydrateTo.

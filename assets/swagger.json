@@ -8605,17 +8605,9 @@
       }
     },
     "v1alpha1HydrateTo": {
-      "description": "HydrateTo specifies a location to which hydrated manifests should be pushed as a \"staging area\" before being moved to\nthe SyncSource. If RepoURL is not set, it defaults to SyncSource.RepoURL (or DrySource.RepoURL if SyncSource.RepoURL\nis also not set). If Path is not set, it defaults to SyncSource.Path.",
+      "description": "HydrateTo specifies a branch to which hydrated manifests should be pushed as a \"staging area\" before being moved to\nthe SyncSource. The repository and path are inherited from SyncSource.",
       "type": "object",
       "properties": {
-        "path": {
-          "description": "Path is a directory path within the git repository where hydrated manifests should be committed. If not set,\ndefaults to SyncSource.Path.",
-          "type": "string"
-        },
-        "repoURL": {
-          "description": "RepoURL is the URL to the git repository where hydrated manifests should be committed. If not set, defaults to\nSyncSource.RepoURL (or DrySource.RepoURL if SyncSource.RepoURL is also not set).",
-          "type": "string"
-        },
         "targetBranch": {
           "type": "string",
           "title": "TargetBranch is the branch to which hydrated manifests should be committed"

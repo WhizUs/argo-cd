@@ -1096,57 +1096,6 @@ func TestHydrator_getManifests_GetRepoObjsError(t *testing.T) {
 	assert.Nil(t, pathDetails)
 }
 
-func TestHydrator_getManifests_UsesHydrateToPath(t *testing.T) {
-	t.Parallel()
-	d := mocks.NewDependencies(t)
-	h := &Hydrator{dependencies: d}
-	app := newTestApp("test-app")
-	app.Spec.SourceHydrator.HydrateTo.Path = "hydrated-path"
-	proj := newTestProject()
-
-	cm := kube.MustToUnstructured(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test",
-		},
-	})
-
-	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "sha123", proj).Return([]*unstructured.Unstructured{cm}, &repoclient.ManifestResponse{
-		Revision: "sha123",
-		Commands: []string{"cmd1"},
-	}, nil)
-
-	rev, pathDetails, err := h.getManifests(t.Context(), app, "sha123", proj)
-	require.NoError(t, err)
-	assert.Equal(t, "sha123", rev)
-	assert.Equal(t, "hydrated-path", pathDetails.Path)
-}
-
-func TestGetHydrateToSource_DifferentRepo(t *testing.T) {
-	spec := &v1alpha1.ApplicationSpec{
-		SourceHydrator: &v1alpha1.SourceHydrator{
-			DrySource: v1alpha1.DrySource{
-				RepoURL:        "https://example.com/dry-repo",
-				TargetRevision: "main",
-				Path:           "base",
-			},
-			SyncSource: v1alpha1.SyncSource{
-				TargetBranch: "hydrated",
-				Path:         "app",
-			},
-			HydrateTo: &v1alpha1.HydrateTo{
-				RepoURL:      "https://example.com/hydrated-repo",
-				TargetBranch: "staging",
-				Path:         "hydrated-app",
-			},
-		},
-	}
-
-	source := spec.GetHydrateToSource()
-	assert.Equal(t, "https://example.com/hydrated-repo", source.RepoURL)
-	assert.Equal(t, "hydrated-app", source.Path)
-	assert.Equal(t, "staging", source.TargetRevision)
-}
-
 func TestGetSyncSource_DifferentRepo(t *testing.T) {
 	hydrator := &v1alpha1.SourceHydrator{
 		DrySource: v1alpha1.DrySource{

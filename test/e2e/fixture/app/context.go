@@ -57,8 +57,6 @@ type Context struct {
 	syncSourcePath           string
 	syncSourceRepoURL        string
 	hydrateToBranch          string
-	hydrateToRepoURL         string
-	hydrateToPath            string
 }
 
 type ContextArgs struct {
@@ -309,16 +307,6 @@ func (c *Context) HydrateToBranch(branch string) *Context {
 
 func (c *Context) SyncSourceRepoURL(repo string) *Context {
 	c.syncSourceRepoURL = repo
-	return c
-}
-
-func (c *Context) HydrateToRepoURL(repo string) *Context {
-	c.hydrateToRepoURL = repo
-	return c
-}
-
-func (c *Context) HydrateToPath(path string) *Context {
-	c.hydrateToPath = path
 	return c
 }
 

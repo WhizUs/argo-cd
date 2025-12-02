@@ -1241,20 +1241,11 @@ message HydrateOperation {
   optional SourceHydrator sourceHydrator = 7;
 }
 
-// HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to
-// the SyncSource. If RepoURL is not set, it defaults to SyncSource.RepoURL (or DrySource.RepoURL if SyncSource.RepoURL
-// is also not set). If Path is not set, it defaults to SyncSource.Path.
+// HydrateTo specifies a branch to which hydrated manifests should be pushed as a "staging area" before being moved to
+// the SyncSource. The repository and path are inherited from SyncSource.
 message HydrateTo {
-  // RepoURL is the URL to the git repository where hydrated manifests should be committed. If not set, defaults to
-  // SyncSource.RepoURL (or DrySource.RepoURL if SyncSource.RepoURL is also not set).
-  optional string repoURL = 1;
-
   // TargetBranch is the branch to which hydrated manifests should be committed
-  optional string targetBranch = 2;
-
-  // Path is a directory path within the git repository where hydrated manifests should be committed. If not set,
-  // defaults to SyncSource.Path.
-  optional string path = 3;
+  optional string targetBranch = 1;
 }
 
 message Info {

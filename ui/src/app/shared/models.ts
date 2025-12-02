@@ -248,9 +248,7 @@ export interface SyncSource {
 }
 
 export interface HydrateTo {
-    repoURL?: string;
     targetBranch: string;
-    path?: string;
 }
 
 export interface ApplicationSourceHelm {

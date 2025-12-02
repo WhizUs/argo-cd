@@ -100,8 +100,6 @@ type AppOptions struct {
 	syncSourcePath                  string
 	syncSourceRepo                  string
 	hydrateToBranch                 string
-	hydrateToRepo                   string
-	hydrateToPath                   string
 }
 
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
@@ -117,8 +115,6 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.syncSourcePath, "sync-source-path", "", "The path in the repository from which the app will sync")
 	command.Flags().StringVar(&opts.syncSourceRepo, "sync-source-repo", "", "The repository URL from which the app will sync (defaults to dry-source-repo if not set)")
 	command.Flags().StringVar(&opts.hydrateToBranch, "hydrate-to-branch", "", "The branch to hydrate the app to")
-	command.Flags().StringVar(&opts.hydrateToRepo, "hydrate-to-repo", "", "The repository URL to hydrate the app to (defaults to sync-source-repo or dry-source-repo if not set)")
-	command.Flags().StringVar(&opts.hydrateToPath, "hydrate-to-path", "", "The path in the repository to hydrate the app to (defaults to sync-source-path if not set)")
 	command.Flags().IntVar(&opts.revisionHistoryLimit, "revision-history-limit", argoappv1.RevisionHistoryLimit, "How many items to keep in revision history")
 	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (e.g. https://kubernetes.default.svc)")
 	command.Flags().StringVar(&opts.destName, "dest-name", "", "K8s cluster Name (e.g. minikube)")
@@ -848,18 +844,6 @@ func constructSourceHydrator(h *argoappv1.SourceHydrator, appOpts AppOptions, fl
 				}
 				h.HydrateTo.TargetBranch = appOpts.hydrateToBranch
 			}
-		case "hydrate-to-repo":
-			ensureNotNil(appOpts.hydrateToRepo != "")
-			if h.HydrateTo == nil {
-				h.HydrateTo = &argoappv1.HydrateTo{}
-			}
-			h.HydrateTo.RepoURL = appOpts.hydrateToRepo
-		case "hydrate-to-path":
-			ensureNotNil(appOpts.hydrateToPath != "")
-			if h.HydrateTo == nil {
-				h.HydrateTo = &argoappv1.HydrateTo{}
-			}
-			h.HydrateTo.Path = appOpts.hydrateToPath
 		}
 	})
 	return h, hasHydratorFlag
