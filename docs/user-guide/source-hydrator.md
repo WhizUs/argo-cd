@@ -173,7 +173,7 @@ Argo CD will only push changes to the `hydrateTo` branch, it will not create a P
 changes to the `syncSource` branch. You will need to use your own tooling to move the changes from the `hydrateTo` 
 branch to the `syncSource` branch.
 
-## Hydrating to a Different Repository
+## Pushing to a Different Repository
 
 The source hydrator supports hydrating manifests to a separate repository, not just a different branch in the same repository. This allows you to keep your dry source repository clean and push rendered manifests to dedicated GitOps repositories.
 
@@ -201,11 +201,26 @@ spec:
 ```
 
 In this example:
-- The **dry source** (unrendered configuration like Helm charts or Kustomize) is in the `gitops-manifests` repository
+- The **DRY source** (unrendered configuration like Helm charts or Kustomize) is in the `gitops-manifests` repository
 - The **hydrated manifests** are pushed to the `gitops-manifests-hydrated` repository on the `main` branch
 - Argo CD **syncs from** the `gitops-manifests-hydrated` repository - this is the same location where hydrated manifests are pushed
 
 The `syncSource.repoURL` field specifies where hydrated manifests should be pushed to AND where Argo CD will sync from. If `syncSource.repoURL` is not set, it defaults to `drySource.repoURL` (same repository, different branch).
+
+### Benefits of Using Separate Repositories
+
+Using different repositories for dry sources and hydrated manifests provides several advantages:
+
+- **Cross-platform flexibility**: You can use different Git providers for each repository. For example, keep your dry source (Helm charts, Kustomize) in GitHub while pushing hydrated manifests to GitLab, Bitbucket, or any other Git provider. This is useful when teams have different tooling preferences or organizational requirements. Or simply as Recovery/Failover
+
+- **Simpler permission management**: Managing permissions at the repository level is often easier than managing branch-level permissions. Many Git providers offer more granular and straightforward access controls at the repository level, making it simpler to enforce who can read or write to specific repositories.
+
+- **Enhanced security for dry sources**: Since Argo CD only needs **read** credentials for the dry source repository and **write** credentials for the hydrated manifests repository, there is no risk of accidentally overwriting the main branch or any other content in your dry source repository. The dry source repository remains protected because Argo CD simply does not have write access to it.
+
+- **Clear separation of concerns**: Keeping rendered manifests in a dedicated repository makes it obvious which repository contains the "source of truth" (dry manifests) versus the generated output (hydrated manifests). This separation can simplify auditing and compliance workflows.
+
+- **No branch drift**: When using branches within the same repository, the hydrated branch continuously diverges from the main branch over time. It accumulates commits that the main branch doesn't have (hydration commits) while also falling behind on commits from the main branch. This creates an increasingly messy git history with branches that are both "ahead" and "behind" by growing numbers of commits. Using separate repositories eliminates this problem entirely - each repository maintains a clean, linear history for its specific purpose.
+
 
 > [!NOTE]
 > When using different repositories, make sure that:
