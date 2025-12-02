@@ -855,15 +855,29 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 		) error {
 			source := app.Spec.GetSource()
 			repoURL := source.RepoURL
-			// When using sourceHydrator with different repos, ensure we use the correct repo URL
-			// (syncSource when set, otherwise drySource)
+			// When using sourceHydrator with different repos, use the stored config from Status
+			// (not Spec) because commits were created with that config at hydration time.
 			if app.Spec.SourceHydrator != nil {
-				// GetSource() already returns syncSource when configured, so repoURL should be correct
-				// But we need to ensure the source object has the correct repoURL
-				if app.Spec.SourceHydrator.SyncSource.RepoURL != "" {
-					repoURL = app.Spec.SourceHydrator.SyncSource.RepoURL
+				// Check CurrentOperation first, then LastSuccessfulOperation for the correct repo URL
+				if op := app.Status.SourceHydrator.CurrentOperation; op != nil {
+					if op.SourceHydrator.SyncSource.RepoURL != "" {
+						repoURL = op.SourceHydrator.SyncSource.RepoURL
+					} else {
+						repoURL = op.SourceHydrator.DrySource.RepoURL
+					}
+				} else if op := app.Status.SourceHydrator.LastSuccessfulOperation; op != nil {
+					if op.SourceHydrator.SyncSource.RepoURL != "" {
+						repoURL = op.SourceHydrator.SyncSource.RepoURL
+					} else {
+						repoURL = op.SourceHydrator.DrySource.RepoURL
+					}
 				} else {
-					repoURL = app.Spec.SourceHydrator.DrySource.RepoURL
+					// Fallback to Spec if no Status operations exist yet
+					if app.Spec.SourceHydrator.SyncSource.RepoURL != "" {
+						repoURL = app.Spec.SourceHydrator.SyncSource.RepoURL
+					} else {
+						repoURL = app.Spec.SourceHydrator.DrySource.RepoURL
+					}
 				}
 			}
 			repo, err := s.db.GetRepository(ctx, repoURL, proj.Name)
@@ -1665,9 +1679,9 @@ func matchHydratorRevisionToRepoURL(revision, drySHA, hydratedSHA string, hydrat
 }
 
 // resolveSourceHydratorRepoURL determines the correct repository URL for a given revision
-// when using sourceHydrator. It checks both CurrentOperation and LastSuccessfulOperation
-// to handle both current and historical revisions. Uses the stored config from Status
-// (not current Spec) because commits were created with that config at hydration time.
+// when using sourceHydrator. It checks CurrentOperation, LastSuccessfulOperation, and
+// sync.ComparedTo to handle both current and historical revisions. Uses the stored config
+// from Status (not current Spec) because commits were created with that config at hydration time.
 func resolveSourceHydratorRepoURL(app *v1alpha1.Application, revision, defaultRepoURL string) string {
 	// Only process if sourceHydrator is configured and revision is a commit SHA
 	if app.Spec.SourceHydrator == nil || !git.IsCommitSHA(revision) {
@@ -1685,6 +1699,13 @@ func resolveSourceHydratorRepoURL(app *v1alpha1.Application, revision, defaultRe
 		if url, found := matchHydratorRevisionToRepoURL(revision, op.DrySHA, op.HydratedSHA, &op.SourceHydrator); found {
 			return url
 		}
+	}
+
+	// Fallback to sync.ComparedTo for revisions that were synced before re-hydration
+	// This handles the case where a new hydration happened but sync.Revision still
+	// references the old hydratedSHA which was created with the previous config
+	if app.Status.Sync.Revision == revision && app.Status.Sync.ComparedTo.Source.RepoURL != "" {
+		return app.Status.Sync.ComparedTo.Source.RepoURL
 	}
 
 	return defaultRepoURL

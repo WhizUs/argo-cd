@@ -4638,6 +4638,100 @@ func Test_resolveSourceHydratorRepoURL(t *testing.T) {
 			defaultRepoURL: defaultRepoURL,
 			expected:       drySourceRepoURL, // Should return CurrentOperation's URL, not LastSuccessful's
 		},
+		{
+			name: "Sync.Revision match returns sync.ComparedTo.Source.RepoURL when no operation match",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{},
+				},
+				Status: v1alpha1.ApplicationStatus{
+					SourceHydrator: v1alpha1.SourceHydratorStatus{
+						// CurrentOperation has NEW SHAs (after re-hydration)
+						CurrentOperation: &v1alpha1.HydrateOperation{
+							DrySHA:      drySHA,
+							HydratedSHA: hydratedSHA,
+							SourceHydrator: v1alpha1.SourceHydrator{
+								DrySource:  v1alpha1.DrySource{RepoURL: drySourceRepoURL},
+								SyncSource: v1alpha1.SyncSource{RepoURL: syncSourceRepoURL},
+							},
+						},
+					},
+					Sync: v1alpha1.SyncStatus{
+						// Sync.Revision still has OLD SHA (before re-sync)
+						Revision: unknownSHA,
+						ComparedTo: v1alpha1.ComparedTo{
+							Source: v1alpha1.ApplicationSource{
+								RepoURL: lastSuccessSyncRepoURL, // The repo where the old SHA exists
+							},
+						},
+					},
+				},
+			},
+			revision:       unknownSHA,
+			defaultRepoURL: defaultRepoURL,
+			expected:       lastSuccessSyncRepoURL, // Should return sync.ComparedTo.Source.RepoURL
+		},
+		{
+			name: "Sync.Revision match with empty ComparedTo.Source.RepoURL returns defaultRepoURL",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{},
+				},
+				Status: v1alpha1.ApplicationStatus{
+					SourceHydrator: v1alpha1.SourceHydratorStatus{
+						CurrentOperation: &v1alpha1.HydrateOperation{
+							DrySHA:      drySHA,
+							HydratedSHA: hydratedSHA,
+							SourceHydrator: v1alpha1.SourceHydrator{
+								DrySource: v1alpha1.DrySource{RepoURL: drySourceRepoURL},
+							},
+						},
+					},
+					Sync: v1alpha1.SyncStatus{
+						Revision: unknownSHA,
+						ComparedTo: v1alpha1.ComparedTo{
+							Source: v1alpha1.ApplicationSource{
+								RepoURL: "", // Empty repo URL
+							},
+						},
+					},
+				},
+			},
+			revision:       unknownSHA,
+			defaultRepoURL: defaultRepoURL,
+			expected:       defaultRepoURL, // Should fall back to default
+		},
+		{
+			name: "Operation match takes priority over sync.Revision match",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{},
+				},
+				Status: v1alpha1.ApplicationStatus{
+					SourceHydrator: v1alpha1.SourceHydratorStatus{
+						CurrentOperation: &v1alpha1.HydrateOperation{
+							DrySHA:      drySHA,
+							HydratedSHA: hydratedSHA,
+							SourceHydrator: v1alpha1.SourceHydrator{
+								DrySource:  v1alpha1.DrySource{RepoURL: drySourceRepoURL},
+								SyncSource: v1alpha1.SyncSource{RepoURL: syncSourceRepoURL},
+							},
+						},
+					},
+					Sync: v1alpha1.SyncStatus{
+						Revision: hydratedSHA, // Same as CurrentOperation.HydratedSHA
+						ComparedTo: v1alpha1.ComparedTo{
+							Source: v1alpha1.ApplicationSource{
+								RepoURL: lastSuccessSyncRepoURL, // Different repo
+							},
+						},
+					},
+				},
+			},
+			revision:       hydratedSHA,
+			defaultRepoURL: defaultRepoURL,
+			expected:       syncSourceRepoURL, // Should return CurrentOperation's SyncSource, not ComparedTo
+		},
 	}
 
 	for _, tc := range testCases {
