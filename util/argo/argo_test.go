@@ -988,47 +988,6 @@ func TestValidatePermissionsSourceHydrator(t *testing.T) {
 		assert.Contains(t, conditions[0].Message, "sync source repo https://github.com/org/sync-repo is not permitted")
 	})
 
-	t.Run("HydrateTo repo not permitted in project", func(t *testing.T) {
-		spec := argoappv1.ApplicationSpec{
-			SourceHydrator: &argoappv1.SourceHydrator{
-				DrySource: argoappv1.DrySource{
-					RepoURL:        "https://github.com/org/dry-repo",
-					TargetRevision: "main",
-					Path:           "apps",
-				},
-				SyncSource: argoappv1.SyncSource{
-					TargetBranch: "hydrated",
-					Path:         "manifests",
-				},
-				HydrateTo: &argoappv1.HydrateTo{
-					RepoURL:      "https://github.com/org/hydrate-to-repo",
-					TargetBranch: "staging",
-					Path:         "staging-manifests",
-				},
-			},
-			Destination: argoappv1.ApplicationDestination{
-				Server:    "https://127.0.0.1:6443",
-				Namespace: "default",
-			},
-		}
-		proj := argoappv1.AppProject{
-			Spec: argoappv1.AppProjectSpec{
-				Destinations: []argoappv1.ApplicationDestination{
-					{Server: "*", Namespace: "*"},
-				},
-				// Only dry-repo is permitted, hydrate-to-repo is not
-				SourceRepos: []string{"https://github.com/org/dry-repo"},
-			},
-		}
-		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
-		db := &dbmocks.ArgoDB{}
-		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil).Maybe()
-		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
-		require.NoError(t, err)
-		assert.Len(t, conditions, 1)
-		assert.Contains(t, conditions[0].Message, "hydrate-to repo https://github.com/org/hydrate-to-repo is not permitted")
-	})
-
 	t.Run("All different repos permitted in project", func(t *testing.T) {
 		spec := argoappv1.ApplicationSpec{
 			SourceHydrator: &argoappv1.SourceHydrator{
@@ -1041,11 +1000,6 @@ func TestValidatePermissionsSourceHydrator(t *testing.T) {
 					RepoURL:      "https://github.com/org/sync-repo",
 					TargetBranch: "hydrated",
 					Path:         "manifests",
-				},
-				HydrateTo: &argoappv1.HydrateTo{
-					RepoURL:      "https://github.com/org/hydrate-to-repo",
-					TargetBranch: "staging",
-					Path:         "staging-manifests",
 				},
 			},
 			Destination: argoappv1.ApplicationDestination{
@@ -1062,7 +1016,6 @@ func TestValidatePermissionsSourceHydrator(t *testing.T) {
 				SourceRepos: []string{
 					"https://github.com/org/dry-repo",
 					"https://github.com/org/sync-repo",
-					"https://github.com/org/hydrate-to-repo",
 				},
 			},
 		}

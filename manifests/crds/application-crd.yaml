@@ -1464,16 +1464,6 @@ spec:
                       HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
                       have to move manifests to the SyncSource, e.g. by pull request.
                     properties:
-                      path:
-                        description: |-
-                          Path is a directory path within the git repository where hydrated manifests should be committed. If not set,
-                          defaults to SyncSource.Path.
-                        type: string
-                      repoURL:
-                        description: |-
-                          RepoURL is the URL to the git repository where hydrated manifests should be committed. If not set, defaults to
-                          SyncSource.RepoURL (or DrySource.RepoURL if SyncSource.RepoURL is also not set).
-                        type: string
                       targetBranch:
                         description: TargetBranch is the branch to which hydrated
                           manifests should be committed
@@ -4895,16 +4885,6 @@ spec:
                               HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
                               have to move manifests to the SyncSource, e.g. by pull request.
                             properties:
-                              path:
-                                description: |-
-                                  Path is a directory path within the git repository where hydrated manifests should be committed. If not set,
-                                  defaults to SyncSource.Path.
-                                type: string
-                              repoURL:
-                                description: |-
-                                  RepoURL is the URL to the git repository where hydrated manifests should be committed. If not set, defaults to
-                                  SyncSource.RepoURL (or DrySource.RepoURL if SyncSource.RepoURL is also not set).
-                                type: string
                               targetBranch:
                                 description: TargetBranch is the branch to which hydrated
                                   manifests should be committed
@@ -4993,16 +4973,6 @@ spec:
                               HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
                               have to move manifests to the SyncSource, e.g. by pull request.
                             properties:
-                              path:
-                                description: |-
-                                  Path is a directory path within the git repository where hydrated manifests should be committed. If not set,
-                                  defaults to SyncSource.Path.
-                                type: string
-                              repoURL:
-                                description: |-
-                                  RepoURL is the URL to the git repository where hydrated manifests should be committed. If not set, defaults to
-                                  SyncSource.RepoURL (or DrySource.RepoURL if SyncSource.RepoURL is also not set).
-                                type: string
                               targetBranch:
                                 description: TargetBranch is the branch to which hydrated
                                   manifests should be committed

@@ -401,10 +401,6 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        path:
-                                          type: string
-                                        repoURL:
-                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -1093,10 +1089,6 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        path:
-                                          type: string
-                                        repoURL:
-                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -1786,10 +1778,6 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        path:
-                                          type: string
-                                        repoURL:
-                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -2457,10 +2445,6 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        path:
-                                          type: string
-                                        repoURL:
-                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -3153,10 +3137,6 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  path:
-                                                    type: string
-                                                  repoURL:
-                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -3845,10 +3825,6 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  path:
-                                                    type: string
-                                                  repoURL:
-                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -4538,10 +4514,6 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  path:
-                                                    type: string
-                                                  repoURL:
-                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -5209,10 +5181,6 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  path:
-                                                    type: string
-                                                  repoURL:
-                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -5888,10 +5856,6 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  path:
-                                                    type: string
-                                                  repoURL:
-                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -6794,10 +6758,6 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  path:
-                                                    type: string
-                                                  repoURL:
-                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -7691,10 +7651,6 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  path:
-                                                    type: string
-                                                  repoURL:
-                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -8379,10 +8335,6 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        path:
-                                          type: string
-                                        repoURL:
-                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -9077,10 +9029,6 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  path:
-                                                    type: string
-                                                  repoURL:
-                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -9769,10 +9717,6 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  path:
-                                                    type: string
-                                                  repoURL:
-                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -10462,10 +10406,6 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  path:
-                                                    type: string
-                                                  repoURL:
-                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -11133,10 +11073,6 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  path:
-                                                    type: string
-                                                  repoURL:
-                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -11812,10 +11748,6 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  path:
-                                                    type: string
-                                                  repoURL:
-                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -12718,10 +12650,6 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  path:
-                                                    type: string
-                                                  repoURL:
-                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -13615,10 +13543,6 @@ spec:
                                                 type: object
                                               hydrateTo:
                                                 properties:
-                                                  path:
-                                                    type: string
-                                                  repoURL:
-                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -14307,10 +14231,6 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        path:
-                                          type: string
-                                        repoURL:
-                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -14985,10 +14905,6 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        path:
-                                          type: string
-                                        repoURL:
-                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -15891,10 +15807,6 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        path:
-                                          type: string
-                                        repoURL:
-                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -16788,10 +16700,6 @@ spec:
                                       type: object
                                     hydrateTo:
                                       properties:
-                                        path:
-                                          type: string
-                                        repoURL:
-                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -17553,10 +17461,6 @@ spec:
                             type: object
                           hydrateTo:
                             properties:
-                              path:
-                                type: string
-                              repoURL:
-                                type: string
                               targetBranch:
                                 type: string
                             required:

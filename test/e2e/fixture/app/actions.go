@@ -285,14 +285,6 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 		args = append(args, "--sync-source-repo", a.context.syncSourceRepoURL)
 	}
 
-	if a.context.hydrateToRepoURL != "" {
-		args = append(args, "--hydrate-to-repo", a.context.hydrateToRepoURL)
-	}
-
-	if a.context.hydrateToPath != "" {
-		args = append(args, "--hydrate-to-path", a.context.hydrateToPath)
-	}
-
 	if a.context.chart != "" {
 		args = append(args, "--helm-chart", a.context.chart)
 	}

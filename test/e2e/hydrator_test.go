@@ -154,39 +154,3 @@ func TestHydratorDifferentSyncSourceRepo(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
-
-// TestHydratorDifferentHydrateToRepo tests hydrating to a different repository for the hydrate-to staging area.
-// This test requires ARGOCD_E2E_HYDRATE_TO_REPO to be set to a valid writable git repository URL.
-// The repository must be configured in the project's allowed source repos and have write credentials.
-func TestHydratorDifferentHydrateToRepo(t *testing.T) {
-	hydrateToRepo := os.Getenv("ARGOCD_E2E_HYDRATE_TO_REPO")
-	if hydrateToRepo == "" {
-		t.Skip("Skipping test: ARGOCD_E2E_HYDRATE_TO_REPO environment variable not set")
-	}
-
-	Given(t).
-		Name("test-hydrator-different-hydrate-to-repo").
-		DrySourcePath("guestbook").
-		DrySourceRevision("HEAD").
-		SyncSourcePath("guestbook").
-		SyncSourceBranch("env/test").
-		HydrateToRepoURL(hydrateToRepo).
-		HydrateToBranch("env/test-staging").
-		HydrateToPath("guestbook-staging").
-		When().
-		CreateApp().
-		Refresh(RefreshTypeNormal).
-		Wait("--hydrated").
-		Then().
-		// The app should be hydrated to the staging branch/repo, but sync will fail
-		// because the sync source doesn't have the manifests yet.
-		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
-		Given().
-		Async(true).
-		When().
-		Sync().
-		Wait("--operation").
-		Then().
-		// Sync fails because manifests are in hydrate-to repo, not sync source
-		Expect(OperationPhaseIs(OperationError))
-}

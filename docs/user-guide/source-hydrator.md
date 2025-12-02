@@ -177,7 +177,7 @@ branch to the `syncSource` branch.
 
 The source hydrator supports hydrating manifests to a separate repository, not just a different branch in the same repository. This allows you to keep your dry source repository clean and push rendered manifests to dedicated GitOps repositories.
 
-To hydrate to a different repository, set the `repoURL` field in the `hydrateTo` configuration:
+To hydrate to a different repository, set the `repoURL` field in the `syncSource` configuration:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -191,33 +191,27 @@ spec:
     namespace: default
   sourceHydrator:
     drySource:
-      repoURL: https://github.com/org/app-configs
+      repoURL: https://github.com/org/gitops-manifests
       path: apps/my-app
-      targetRevision: main
+      targetRevision: HEAD
     syncSource:
-      repoURL: https://github.com/org/gitops-manifests
+      repoURL: https://github.com/org/gitops-manifests-hydrated
       targetBranch: main
-      path: clusters/prod/my-app
-    hydrateTo:
-      repoURL: https://github.com/org/gitops-manifests
-      targetBranch: staging
-      path: clusters/prod/my-app
+      path: apps/my-app
 ```
 
 In this example:
-- The dry source is in `app-configs` repository
-- The hydrated manifests are pushed to the `staging` branch of the `gitops-manifests` repository
-- Argo CD syncs from the `main` branch of the `gitops-manifests` repository
+- The **dry source** (unrendered configuration like Helm charts or Kustomize) is in the `gitops-manifests` repository
+- The **hydrated manifests** are pushed to the `gitops-manifests-hydrated` repository on the `main` branch
+- Argo CD **syncs from** the `gitops-manifests-hydrated` repository - this is the same location where hydrated manifests are pushed
 
-You can also specify a different path in the `hydrateTo` configuration. If `path` is not set in `hydrateTo`, it defaults to the `syncSource.path`.
-
-Similarly, you can configure `syncSource` to read from a different repository by setting its `repoURL` field. If `syncSource.repoURL` is not set, it defaults to `drySource.repoURL`.
+The `syncSource.repoURL` field specifies where hydrated manifests should be pushed to AND where Argo CD will sync from. If `syncSource.repoURL` is not set, it defaults to `drySource.repoURL` (same repository, different branch).
 
 > [!NOTE]
 > When using different repositories, make sure that:
 > - All repositories are permitted in your AppProject
-> - You have write credentials configured for the destination repository (the one specified in `hydrateTo.repoURL` or `syncSource.repoURL`)
-> - You have read credentials configured for the sync source repository
+> - You have write credentials configured for the destination repository (the one specified in `syncSource.repoURL`)
+> - You have read credentials configured for both the dry source and sync source repositories
 
 ## Commit Tracing
 
