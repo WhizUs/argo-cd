@@ -35,6 +35,9 @@ message ApplicationQuery {
 	optional string appNamespace = 7;
 	// the project names to restrict returned list applications (legacy name for backwards-compatibility)
 	repeated string project = 8;
+	// sourceType specifies which source to use for hydrator apps: "dry" or "hydrated".
+	// If not specified, defaults to "dry".
+	optional string sourceType = 9;
 }
 
 message NodeQuery {
