@@ -5109,411 +5109,6 @@ func Test_RevisionMetadata(t *testing.T) {
 	}
 }
 
-func Test_matchHydratorRevisionToRepoURL(t *testing.T) {
-	t.Parallel()
-
-	const (
-		drySourceRepoURL  = "https://github.com/org/dry-source"
-		syncSourceRepoURL = "https://github.com/org/sync-source"
-		drySHA            = "abc1234567890abcdef1234567890abcdef12345" // 40 chars
-		hydratedSHA       = "def1234567890abcdef1234567890abcdef12345" // 40 chars
-		unknownSHA        = "fff1234567890abcdef1234567890abcdef12345" // 40 chars
-	)
-
-	testCases := []struct {
-		name        string
-		revision    string
-		drySHA      string
-		hydratedSHA string
-		hydrator    *v1alpha1.SourceHydrator
-		expectedURL string
-		expectFound bool
-	}{
-		{
-			name:        "DrySHA match returns DrySource.RepoURL",
-			revision:    drySHA,
-			drySHA:      drySHA,
-			hydratedSHA: hydratedSHA,
-			hydrator: &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{RepoURL: drySourceRepoURL},
-			},
-			expectedURL: drySourceRepoURL,
-			expectFound: true,
-		},
-		{
-			name:        "HydratedSHA match with SyncSource.RepoURL returns SyncSource.RepoURL",
-			revision:    hydratedSHA,
-			drySHA:      drySHA,
-			hydratedSHA: hydratedSHA,
-			hydrator: &v1alpha1.SourceHydrator{
-				DrySource:  v1alpha1.DrySource{RepoURL: drySourceRepoURL},
-				SyncSource: v1alpha1.SyncSource{RepoURL: syncSourceRepoURL},
-			},
-			expectedURL: syncSourceRepoURL,
-			expectFound: true,
-		},
-		{
-			name:        "HydratedSHA match without SyncSource.RepoURL returns DrySource.RepoURL",
-			revision:    hydratedSHA,
-			drySHA:      drySHA,
-			hydratedSHA: hydratedSHA,
-			hydrator: &v1alpha1.SourceHydrator{
-				DrySource:  v1alpha1.DrySource{RepoURL: drySourceRepoURL},
-				SyncSource: v1alpha1.SyncSource{RepoURL: ""},
-			},
-			expectedURL: drySourceRepoURL,
-			expectFound: true,
-		},
-		{
-			name:        "No match returns empty and false",
-			revision:    unknownSHA,
-			drySHA:      drySHA,
-			hydratedSHA: hydratedSHA,
-			hydrator: &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{RepoURL: drySourceRepoURL},
-			},
-			expectedURL: "",
-			expectFound: false,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			url, found := matchHydratorRevisionToRepoURL(tc.revision, tc.drySHA, tc.hydratedSHA, tc.hydrator)
-			assert.Equal(t, tc.expectedURL, url)
-			assert.Equal(t, tc.expectFound, found)
-		})
-	}
-}
-
-func Test_resolveSourceHydratorRepoURL(t *testing.T) {
-	t.Parallel()
-
-	const (
-		defaultRepoURL         = "https://github.com/org/default-repo"
-		drySourceRepoURL       = "https://github.com/org/dry-source"
-		syncSourceRepoURL      = "https://github.com/org/sync-source"
-		lastSuccessDryRepoURL  = "https://github.com/org/last-dry-source"
-		lastSuccessSyncRepoURL = "https://github.com/org/last-sync-source"
-		drySHA                 = "abc1234567890abcdef1234567890abcdef12345" // 40 chars
-		hydratedSHA            = "def1234567890abcdef1234567890abcdef12345" // 40 chars
-		lastSuccessDrySHA      = "111aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa111" // 40 chars
-		lastSuccessHydratedSHA = "222bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb222" // 40 chars
-		unknownSHA             = "fff1234567890abcdef1234567890abcdef12345" // 40 chars
-	)
-
-	testCases := []struct {
-		name           string
-		app            *v1alpha1.Application
-		revision       string
-		defaultRepoURL string
-		expected       string
-	}{
-		{
-			name: "Non-hydrator app returns defaultRepoURL",
-			app: &v1alpha1.Application{
-				Spec: v1alpha1.ApplicationSpec{
-					SourceHydrator: nil,
-				},
-			},
-			revision:       drySHA,
-			defaultRepoURL: defaultRepoURL,
-			expected:       defaultRepoURL,
-		},
-		{
-			name: "Non-commit SHA revision returns defaultRepoURL",
-			app: &v1alpha1.Application{
-				Spec: v1alpha1.ApplicationSpec{
-					SourceHydrator: &v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{RepoURL: drySourceRepoURL},
-					},
-				},
-				Status: v1alpha1.ApplicationStatus{
-					SourceHydrator: v1alpha1.SourceHydratorStatus{},
-				},
-			},
-			revision:       "main",
-			defaultRepoURL: defaultRepoURL,
-			expected:       defaultRepoURL,
-		},
-		{
-			name: "DrySHA match in CurrentOperation returns DrySource.RepoURL",
-			app: &v1alpha1.Application{
-				Spec: v1alpha1.ApplicationSpec{
-					SourceHydrator: &v1alpha1.SourceHydrator{},
-				},
-				Status: v1alpha1.ApplicationStatus{
-					SourceHydrator: v1alpha1.SourceHydratorStatus{
-						CurrentOperation: &v1alpha1.HydrateOperation{
-							DrySHA:      drySHA,
-							HydratedSHA: hydratedSHA,
-							SourceHydrator: v1alpha1.SourceHydrator{
-								DrySource: v1alpha1.DrySource{RepoURL: drySourceRepoURL},
-							},
-						},
-					},
-				},
-			},
-			revision:       drySHA,
-			defaultRepoURL: defaultRepoURL,
-			expected:       drySourceRepoURL,
-		},
-		{
-			name: "HydratedSHA match with SyncSource.RepoURL returns SyncSource.RepoURL",
-			app: &v1alpha1.Application{
-				Spec: v1alpha1.ApplicationSpec{
-					SourceHydrator: &v1alpha1.SourceHydrator{},
-				},
-				Status: v1alpha1.ApplicationStatus{
-					SourceHydrator: v1alpha1.SourceHydratorStatus{
-						CurrentOperation: &v1alpha1.HydrateOperation{
-							DrySHA:      drySHA,
-							HydratedSHA: hydratedSHA,
-							SourceHydrator: v1alpha1.SourceHydrator{
-								DrySource:  v1alpha1.DrySource{RepoURL: drySourceRepoURL},
-								SyncSource: v1alpha1.SyncSource{RepoURL: syncSourceRepoURL},
-							},
-						},
-					},
-				},
-			},
-			revision:       hydratedSHA,
-			defaultRepoURL: defaultRepoURL,
-			expected:       syncSourceRepoURL,
-		},
-		{
-			name: "HydratedSHA match without SyncSource.RepoURL returns DrySource.RepoURL",
-			app: &v1alpha1.Application{
-				Spec: v1alpha1.ApplicationSpec{
-					SourceHydrator: &v1alpha1.SourceHydrator{},
-				},
-				Status: v1alpha1.ApplicationStatus{
-					SourceHydrator: v1alpha1.SourceHydratorStatus{
-						CurrentOperation: &v1alpha1.HydrateOperation{
-							DrySHA:      drySHA,
-							HydratedSHA: hydratedSHA,
-							SourceHydrator: v1alpha1.SourceHydrator{
-								DrySource:  v1alpha1.DrySource{RepoURL: drySourceRepoURL},
-								SyncSource: v1alpha1.SyncSource{RepoURL: ""},
-							},
-						},
-					},
-				},
-			},
-			revision:       hydratedSHA,
-			defaultRepoURL: defaultRepoURL,
-			expected:       drySourceRepoURL,
-		},
-		{
-			name: "DrySHA match in LastSuccessfulOperation only returns LastSuccessful DrySource.RepoURL",
-			app: &v1alpha1.Application{
-				Spec: v1alpha1.ApplicationSpec{
-					SourceHydrator: &v1alpha1.SourceHydrator{},
-				},
-				Status: v1alpha1.ApplicationStatus{
-					SourceHydrator: v1alpha1.SourceHydratorStatus{
-						CurrentOperation: &v1alpha1.HydrateOperation{
-							DrySHA:      drySHA,
-							HydratedSHA: hydratedSHA,
-							SourceHydrator: v1alpha1.SourceHydrator{
-								DrySource: v1alpha1.DrySource{RepoURL: drySourceRepoURL},
-							},
-						},
-						LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
-							DrySHA:      lastSuccessDrySHA,
-							HydratedSHA: lastSuccessHydratedSHA,
-							SourceHydrator: v1alpha1.SourceHydrator{
-								DrySource: v1alpha1.DrySource{RepoURL: lastSuccessDryRepoURL},
-							},
-						},
-					},
-				},
-			},
-			revision:       lastSuccessDrySHA,
-			defaultRepoURL: defaultRepoURL,
-			expected:       lastSuccessDryRepoURL,
-		},
-		{
-			name: "HydratedSHA match in LastSuccessfulOperation with SyncSource.RepoURL returns SyncSource.RepoURL",
-			app: &v1alpha1.Application{
-				Spec: v1alpha1.ApplicationSpec{
-					SourceHydrator: &v1alpha1.SourceHydrator{},
-				},
-				Status: v1alpha1.ApplicationStatus{
-					SourceHydrator: v1alpha1.SourceHydratorStatus{
-						CurrentOperation: nil,
-						LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
-							DrySHA:      lastSuccessDrySHA,
-							HydratedSHA: lastSuccessHydratedSHA,
-							SourceHydrator: v1alpha1.SourceHydrator{
-								DrySource:  v1alpha1.DrySource{RepoURL: lastSuccessDryRepoURL},
-								SyncSource: v1alpha1.SyncSource{RepoURL: lastSuccessSyncRepoURL},
-							},
-						},
-					},
-				},
-			},
-			revision:       lastSuccessHydratedSHA,
-			defaultRepoURL: defaultRepoURL,
-			expected:       lastSuccessSyncRepoURL,
-		},
-		{
-			name: "No match anywhere returns defaultRepoURL",
-			app: &v1alpha1.Application{
-				Spec: v1alpha1.ApplicationSpec{
-					SourceHydrator: &v1alpha1.SourceHydrator{},
-				},
-				Status: v1alpha1.ApplicationStatus{
-					SourceHydrator: v1alpha1.SourceHydratorStatus{
-						CurrentOperation: &v1alpha1.HydrateOperation{
-							DrySHA:      drySHA,
-							HydratedSHA: hydratedSHA,
-							SourceHydrator: v1alpha1.SourceHydrator{
-								DrySource: v1alpha1.DrySource{RepoURL: drySourceRepoURL},
-							},
-						},
-					},
-				},
-			},
-			revision:       unknownSHA,
-			defaultRepoURL: defaultRepoURL,
-			expected:       defaultRepoURL,
-		},
-		{
-			name: "CurrentOperation takes priority over LastSuccessfulOperation",
-			app: &v1alpha1.Application{
-				Spec: v1alpha1.ApplicationSpec{
-					SourceHydrator: &v1alpha1.SourceHydrator{},
-				},
-				Status: v1alpha1.ApplicationStatus{
-					SourceHydrator: v1alpha1.SourceHydratorStatus{
-						CurrentOperation: &v1alpha1.HydrateOperation{
-							DrySHA:      drySHA,
-							HydratedSHA: hydratedSHA,
-							SourceHydrator: v1alpha1.SourceHydrator{
-								DrySource: v1alpha1.DrySource{RepoURL: drySourceRepoURL},
-							},
-						},
-						LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
-							DrySHA:      drySHA, // Same SHA in both operations
-							HydratedSHA: hydratedSHA,
-							SourceHydrator: v1alpha1.SourceHydrator{
-								DrySource: v1alpha1.DrySource{RepoURL: lastSuccessDryRepoURL},
-							},
-						},
-					},
-				},
-			},
-			revision:       drySHA,
-			defaultRepoURL: defaultRepoURL,
-			expected:       drySourceRepoURL, // Should return CurrentOperation's URL, not LastSuccessful's
-		},
-		{
-			name: "Sync.Revision match returns sync.ComparedTo.Source.RepoURL when no operation match",
-			app: &v1alpha1.Application{
-				Spec: v1alpha1.ApplicationSpec{
-					SourceHydrator: &v1alpha1.SourceHydrator{},
-				},
-				Status: v1alpha1.ApplicationStatus{
-					SourceHydrator: v1alpha1.SourceHydratorStatus{
-						// CurrentOperation has NEW SHAs (after re-hydration)
-						CurrentOperation: &v1alpha1.HydrateOperation{
-							DrySHA:      drySHA,
-							HydratedSHA: hydratedSHA,
-							SourceHydrator: v1alpha1.SourceHydrator{
-								DrySource:  v1alpha1.DrySource{RepoURL: drySourceRepoURL},
-								SyncSource: v1alpha1.SyncSource{RepoURL: syncSourceRepoURL},
-							},
-						},
-					},
-					Sync: v1alpha1.SyncStatus{
-						// Sync.Revision still has OLD SHA (before re-sync)
-						Revision: unknownSHA,
-						ComparedTo: v1alpha1.ComparedTo{
-							Source: v1alpha1.ApplicationSource{
-								RepoURL: lastSuccessSyncRepoURL, // The repo where the old SHA exists
-							},
-						},
-					},
-				},
-			},
-			revision:       unknownSHA,
-			defaultRepoURL: defaultRepoURL,
-			expected:       lastSuccessSyncRepoURL, // Should return sync.ComparedTo.Source.RepoURL
-		},
-		{
-			name: "Sync.Revision match with empty ComparedTo.Source.RepoURL returns defaultRepoURL",
-			app: &v1alpha1.Application{
-				Spec: v1alpha1.ApplicationSpec{
-					SourceHydrator: &v1alpha1.SourceHydrator{},
-				},
-				Status: v1alpha1.ApplicationStatus{
-					SourceHydrator: v1alpha1.SourceHydratorStatus{
-						CurrentOperation: &v1alpha1.HydrateOperation{
-							DrySHA:      drySHA,
-							HydratedSHA: hydratedSHA,
-							SourceHydrator: v1alpha1.SourceHydrator{
-								DrySource: v1alpha1.DrySource{RepoURL: drySourceRepoURL},
-							},
-						},
-					},
-					Sync: v1alpha1.SyncStatus{
-						Revision: unknownSHA,
-						ComparedTo: v1alpha1.ComparedTo{
-							Source: v1alpha1.ApplicationSource{
-								RepoURL: "", // Empty repo URL
-							},
-						},
-					},
-				},
-			},
-			revision:       unknownSHA,
-			defaultRepoURL: defaultRepoURL,
-			expected:       defaultRepoURL, // Should fall back to default
-		},
-		{
-			name: "Operation match takes priority over sync.Revision match",
-			app: &v1alpha1.Application{
-				Spec: v1alpha1.ApplicationSpec{
-					SourceHydrator: &v1alpha1.SourceHydrator{},
-				},
-				Status: v1alpha1.ApplicationStatus{
-					SourceHydrator: v1alpha1.SourceHydratorStatus{
-						CurrentOperation: &v1alpha1.HydrateOperation{
-							DrySHA:      drySHA,
-							HydratedSHA: hydratedSHA,
-							SourceHydrator: v1alpha1.SourceHydrator{
-								DrySource:  v1alpha1.DrySource{RepoURL: drySourceRepoURL},
-								SyncSource: v1alpha1.SyncSource{RepoURL: syncSourceRepoURL},
-							},
-						},
-					},
-					Sync: v1alpha1.SyncStatus{
-						Revision: hydratedSHA, // Same as CurrentOperation.HydratedSHA
-						ComparedTo: v1alpha1.ComparedTo{
-							Source: v1alpha1.ApplicationSource{
-								RepoURL: lastSuccessSyncRepoURL, // Different repo
-							},
-						},
-					},
-				},
-			},
-			revision:       hydratedSHA,
-			defaultRepoURL: defaultRepoURL,
-			expected:       syncSourceRepoURL, // Should return CurrentOperation's SyncSource, not ComparedTo
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			result := resolveSourceHydratorRepoURL(tc.app, tc.revision, tc.defaultRepoURL)
-			assert.Equal(t, tc.expected, result)
-		})
-	}
-}
-
 func Test_DeepCopyInformers(t *testing.T) {
 	t.Parallel()
 
@@ -5615,179 +5210,6 @@ func Test_DeepCopyInformers(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotSame(t, p, &spList[i])
 	}
-}
-
-// Test_resolveSourceHydratorRepoURL_SyncComparedToFallback specifically tests the sync.ComparedTo fallback
-// when the revision doesn't match any operation but matches sync.Revision
-func Test_resolveSourceHydratorRepoURL_SyncComparedToFallback(t *testing.T) {
-	t.Parallel()
-
-	const (
-		defaultRepoURL    = "https://github.com/org/default-repo"
-		comparedToRepoURL = "https://github.com/org/compared-to-repo"
-		syncRevision      = "abc1234567890abcdef1234567890abcdef12345" // 40 chars
-	)
-
-	// Test case: sync.Revision matches but ComparedTo.Source.RepoURL is empty
-	t.Run("sync.Revision match with empty ComparedTo.Source.RepoURL returns defaultRepoURL", func(t *testing.T) {
-		t.Parallel()
-		app := &v1alpha1.Application{
-			Spec: v1alpha1.ApplicationSpec{
-				SourceHydrator: &v1alpha1.SourceHydrator{},
-			},
-			Status: v1alpha1.ApplicationStatus{
-				SourceHydrator: v1alpha1.SourceHydratorStatus{
-					// No operations - nothing matches
-				},
-				Sync: v1alpha1.SyncStatus{
-					Revision: syncRevision,
-					ComparedTo: v1alpha1.ComparedTo{
-						Source: v1alpha1.ApplicationSource{
-							RepoURL: "", // Empty repo URL
-						},
-					},
-				},
-			},
-		}
-		result := resolveSourceHydratorRepoURL(app, syncRevision, defaultRepoURL)
-		assert.Equal(t, defaultRepoURL, result)
-	})
-
-	// Test case: sync.Revision matches and ComparedTo.Source.RepoURL is set
-	t.Run("sync.Revision match with ComparedTo.Source.RepoURL returns ComparedTo URL", func(t *testing.T) {
-		t.Parallel()
-		app := &v1alpha1.Application{
-			Spec: v1alpha1.ApplicationSpec{
-				SourceHydrator: &v1alpha1.SourceHydrator{},
-			},
-			Status: v1alpha1.ApplicationStatus{
-				SourceHydrator: v1alpha1.SourceHydratorStatus{
-					// No operations - nothing matches
-				},
-				Sync: v1alpha1.SyncStatus{
-					Revision: syncRevision,
-					ComparedTo: v1alpha1.ComparedTo{
-						Source: v1alpha1.ApplicationSource{
-							RepoURL: comparedToRepoURL,
-						},
-					},
-				},
-			},
-		}
-		result := resolveSourceHydratorRepoURL(app, syncRevision, defaultRepoURL)
-		assert.Equal(t, comparedToRepoURL, result)
-	})
-
-	// Test case: revision doesn't match sync.Revision, returns defaultRepoURL
-	t.Run("revision doesn't match sync.Revision returns defaultRepoURL", func(t *testing.T) {
-		t.Parallel()
-		differentRevision := "fff1234567890abcdef1234567890abcdef12345"
-		app := &v1alpha1.Application{
-			Spec: v1alpha1.ApplicationSpec{
-				SourceHydrator: &v1alpha1.SourceHydrator{},
-			},
-			Status: v1alpha1.ApplicationStatus{
-				SourceHydrator: v1alpha1.SourceHydratorStatus{
-					// No operations - nothing matches
-				},
-				Sync: v1alpha1.SyncStatus{
-					Revision: syncRevision,
-					ComparedTo: v1alpha1.ComparedTo{
-						Source: v1alpha1.ApplicationSource{
-							RepoURL: comparedToRepoURL,
-						},
-					},
-				},
-			},
-		}
-		result := resolveSourceHydratorRepoURL(app, differentRevision, defaultRepoURL)
-		assert.Equal(t, defaultRepoURL, result)
-	})
-}
-
-// Test_resolveSourceHydratorRepoURL_LastSuccessfulOperationOnly tests the fallback to LastSuccessfulOperation
-// when CurrentOperation is nil
-func Test_resolveSourceHydratorRepoURL_LastSuccessfulOperationOnly(t *testing.T) {
-	t.Parallel()
-
-	const (
-		defaultRepoURL         = "https://github.com/org/default-repo"
-		lastSuccessDryRepoURL  = "https://github.com/org/last-dry-source"
-		lastSuccessSyncRepoURL = "https://github.com/org/last-sync-source"
-		lastSuccessDrySHA      = "111aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa111" // 40 chars
-		lastSuccessHydratedSHA = "222bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb222" // 40 chars
-	)
-
-	t.Run("DrySHA match in LastSuccessfulOperation only (no CurrentOperation)", func(t *testing.T) {
-		t.Parallel()
-		app := &v1alpha1.Application{
-			Spec: v1alpha1.ApplicationSpec{
-				SourceHydrator: &v1alpha1.SourceHydrator{},
-			},
-			Status: v1alpha1.ApplicationStatus{
-				SourceHydrator: v1alpha1.SourceHydratorStatus{
-					CurrentOperation: nil, // No current operation
-					LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
-						DrySHA:      lastSuccessDrySHA,
-						HydratedSHA: lastSuccessHydratedSHA,
-						SourceHydrator: v1alpha1.SourceHydrator{
-							DrySource: v1alpha1.DrySource{RepoURL: lastSuccessDryRepoURL},
-						},
-					},
-				},
-			},
-		}
-		result := resolveSourceHydratorRepoURL(app, lastSuccessDrySHA, defaultRepoURL)
-		assert.Equal(t, lastSuccessDryRepoURL, result)
-	})
-
-	t.Run("HydratedSHA match in LastSuccessfulOperation without SyncSource.RepoURL", func(t *testing.T) {
-		t.Parallel()
-		app := &v1alpha1.Application{
-			Spec: v1alpha1.ApplicationSpec{
-				SourceHydrator: &v1alpha1.SourceHydrator{},
-			},
-			Status: v1alpha1.ApplicationStatus{
-				SourceHydrator: v1alpha1.SourceHydratorStatus{
-					CurrentOperation: nil, // No current operation
-					LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
-						DrySHA:      lastSuccessDrySHA,
-						HydratedSHA: lastSuccessHydratedSHA,
-						SourceHydrator: v1alpha1.SourceHydrator{
-							DrySource:  v1alpha1.DrySource{RepoURL: lastSuccessDryRepoURL},
-							SyncSource: v1alpha1.SyncSource{RepoURL: ""}, // Empty SyncSource.RepoURL
-						},
-					},
-				},
-			},
-		}
-		result := resolveSourceHydratorRepoURL(app, lastSuccessHydratedSHA, defaultRepoURL)
-		assert.Equal(t, lastSuccessDryRepoURL, result)
-	})
-
-	t.Run("HydratedSHA match in LastSuccessfulOperation with SyncSource.RepoURL", func(t *testing.T) {
-		t.Parallel()
-		app := &v1alpha1.Application{
-			Spec: v1alpha1.ApplicationSpec{
-				SourceHydrator: &v1alpha1.SourceHydrator{},
-			},
-			Status: v1alpha1.ApplicationStatus{
-				SourceHydrator: v1alpha1.SourceHydratorStatus{
-					CurrentOperation: nil, // No current operation
-					LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
-						DrySHA:      lastSuccessDrySHA,
-						HydratedSHA: lastSuccessHydratedSHA,
-						SourceHydrator: v1alpha1.SourceHydrator{
-							DrySource:  v1alpha1.DrySource{RepoURL: lastSuccessDryRepoURL},
-							SyncSource: v1alpha1.SyncSource{RepoURL: lastSuccessSyncRepoURL},
-						},
-					},
-				},
-			},
-		}
-		result := resolveSourceHydratorRepoURL(app, lastSuccessHydratedSHA, defaultRepoURL)
-		assert.Equal(t, lastSuccessSyncRepoURL, result)
-	})
 }
 
 func TestServerSideDiff(t *testing.T) {
@@ -5930,4 +5352,148 @@ func TestServerSideDiff(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "application")
 	})
+}
+
+func Test_resolveSourceHydratorRepoURLWithSourceType(t *testing.T) {
+	t.Parallel()
+
+	dryRepoURL := "https://github.com/org/dry-repo"
+	syncRepoURL := "https://github.com/org/sync-repo"
+	defaultRepoURL := "https://github.com/org/default-repo"
+
+	tests := []struct {
+		name           string
+		app            *v1alpha1.Application
+		sourceType     string
+		defaultRepoURL string
+		expected       string
+	}{
+		{
+			name: "no sourceHydrator returns default",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			sourceType:     "dry",
+			defaultRepoURL: defaultRepoURL,
+			expected:       defaultRepoURL,
+		},
+		{
+			name: "sourceType dry returns DrySource.RepoURL",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        dryRepoURL,
+							TargetRevision: "main",
+							Path:           "apps",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							RepoURL:      syncRepoURL,
+							TargetBranch: "hydrated",
+							Path:         "manifests",
+						},
+					},
+				},
+			},
+			sourceType:     "dry",
+			defaultRepoURL: defaultRepoURL,
+			expected:       dryRepoURL,
+		},
+		{
+			name: "sourceType hydrated with SyncSource.RepoURL returns SyncSource.RepoURL",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        dryRepoURL,
+							TargetRevision: "main",
+							Path:           "apps",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							RepoURL:      syncRepoURL,
+							TargetBranch: "hydrated",
+							Path:         "manifests",
+						},
+					},
+				},
+			},
+			sourceType:     "hydrated",
+			defaultRepoURL: defaultRepoURL,
+			expected:       syncRepoURL,
+		},
+		{
+			name: "sourceType hydrated without SyncSource.RepoURL returns DrySource.RepoURL",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        dryRepoURL,
+							TargetRevision: "main",
+							Path:           "apps",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							// No RepoURL set
+							TargetBranch: "hydrated",
+							Path:         "manifests",
+						},
+					},
+				},
+			},
+			sourceType:     "hydrated",
+			defaultRepoURL: defaultRepoURL,
+			expected:       dryRepoURL,
+		},
+		{
+			name: "unknown sourceType returns default",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        dryRepoURL,
+							TargetRevision: "main",
+							Path:           "apps",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							RepoURL:      syncRepoURL,
+							TargetBranch: "hydrated",
+							Path:         "manifests",
+						},
+					},
+				},
+			},
+			sourceType:     "unknown",
+			defaultRepoURL: defaultRepoURL,
+			expected:       defaultRepoURL,
+		},
+		{
+			name: "empty sourceType returns default",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        dryRepoURL,
+							TargetRevision: "main",
+							Path:           "apps",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							RepoURL:      syncRepoURL,
+							TargetBranch: "hydrated",
+							Path:         "manifests",
+						},
+					},
+				},
+			},
+			sourceType:     "",
+			defaultRepoURL: defaultRepoURL,
+			expected:       defaultRepoURL,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := resolveSourceHydratorRepoURLWithSourceType(tt.app, tt.sourceType, tt.defaultRepoURL)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }

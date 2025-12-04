@@ -1173,6 +1173,124 @@ func TestValidatePermissionsSourceHydrator(t *testing.T) {
 	})
 }
 
+func TestValidateSourceHydrator(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Missing DrySource.RepoURL", func(t *testing.T) {
+		t.Parallel()
+		hydrator := &argoappv1.SourceHydrator{
+			DrySource: argoappv1.DrySource{
+				// Missing RepoURL
+				TargetRevision: "main",
+				Path:           "apps",
+			},
+			SyncSource: argoappv1.SyncSource{
+				TargetBranch: "hydrated",
+				Path:         "manifests",
+			},
+		}
+		conditions := validateSourceHydrator(hydrator)
+		require.Len(t, conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+		assert.Contains(t, conditions[0].Message, "spec.sourceHydrator.drySource.repoURL is required")
+	})
+
+	t.Run("Missing SyncSource.TargetBranch", func(t *testing.T) {
+		t.Parallel()
+		hydrator := &argoappv1.SourceHydrator{
+			DrySource: argoappv1.DrySource{
+				RepoURL:        "https://github.com/org/repo",
+				TargetRevision: "main",
+				Path:           "apps",
+			},
+			SyncSource: argoappv1.SyncSource{
+				// Missing TargetBranch
+				Path: "manifests",
+			},
+		}
+		conditions := validateSourceHydrator(hydrator)
+		require.Len(t, conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+		assert.Contains(t, conditions[0].Message, "spec.sourceHydrator.syncSource.targetBranch is required")
+	})
+
+	t.Run("HydrateTo set but missing TargetBranch", func(t *testing.T) {
+		t.Parallel()
+		hydrator := &argoappv1.SourceHydrator{
+			DrySource: argoappv1.DrySource{
+				RepoURL:        "https://github.com/org/repo",
+				TargetRevision: "main",
+				Path:           "apps",
+			},
+			SyncSource: argoappv1.SyncSource{
+				TargetBranch: "hydrated",
+				Path:         "manifests",
+			},
+			HydrateTo: &argoappv1.HydrateTo{
+				// Missing TargetBranch
+			},
+		}
+		conditions := validateSourceHydrator(hydrator)
+		require.Len(t, conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+		assert.Contains(t, conditions[0].Message, "spec.sourceHydrator.hydrateTo.targetBranch is required")
+	})
+
+	t.Run("Multiple validation errors", func(t *testing.T) {
+		t.Parallel()
+		hydrator := &argoappv1.SourceHydrator{
+			DrySource: argoappv1.DrySource{
+				// Missing RepoURL
+				TargetRevision: "main",
+				Path:           "apps",
+			},
+			SyncSource: argoappv1.SyncSource{
+				// Missing TargetBranch
+				Path: "manifests",
+			},
+		}
+		conditions := validateSourceHydrator(hydrator)
+		require.Len(t, conditions, 2)
+	})
+
+	t.Run("Valid hydrator config", func(t *testing.T) {
+		t.Parallel()
+		hydrator := &argoappv1.SourceHydrator{
+			DrySource: argoappv1.DrySource{
+				RepoURL:        "https://github.com/org/repo",
+				TargetRevision: "main",
+				Path:           "apps",
+			},
+			SyncSource: argoappv1.SyncSource{
+				TargetBranch: "hydrated",
+				Path:         "manifests",
+			},
+		}
+		conditions := validateSourceHydrator(hydrator)
+		assert.Empty(t, conditions)
+	})
+
+	t.Run("Valid hydrator config with HydrateTo", func(t *testing.T) {
+		t.Parallel()
+		hydrator := &argoappv1.SourceHydrator{
+			DrySource: argoappv1.DrySource{
+				RepoURL:        "https://github.com/org/repo",
+				TargetRevision: "main",
+				Path:           "apps",
+			},
+			SyncSource: argoappv1.SyncSource{
+				TargetBranch: "hydrated",
+				Path:         "manifests",
+			},
+			HydrateTo: &argoappv1.HydrateTo{
+				TargetBranch: "env/prod",
+			},
+		}
+		conditions := validateSourceHydrator(hydrator)
+		assert.Empty(t, conditions)
+	})
+}
+
 func TestSetAppOperations(t *testing.T) {
 	t.Run("Application not existing", func(t *testing.T) {
 		appIf := appclientset.NewSimpleClientset().ArgoprojV1alpha1().Applications("default")

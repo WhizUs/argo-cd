@@ -780,8 +780,8 @@ func TestValidateApplications_DuplicateDestination(t *testing.T) {
 	projects, errs := h.validateApplications([]*v1alpha1.Application{app1, app2})
 	require.Nil(t, projects)
 	require.Len(t, errs, 2)
-	require.ErrorContains(t, errs[app1.QualifiedName()], "app default/app2 hydrator use the same destination")
-	require.ErrorContains(t, errs[app2.QualifiedName()], "app default/app1 hydrator use the same destination")
+	require.ErrorContains(t, errs[app1.QualifiedName()], "app default/app2 hydrator uses the same destination")
+	require.ErrorContains(t, errs[app2.QualifiedName()], "app default/app1 hydrator uses the same destination")
 }
 
 func TestValidateApplications_Success(t *testing.T) {
@@ -1223,4 +1223,98 @@ func TestGetSyncSource_FallsBackToDrySourceRepo(t *testing.T) {
 	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
 	assert.Equal(t, "app", source.Path)
 	assert.Equal(t, "hydrated", source.TargetRevision)
+}
+
+// TestGetSyncSource_FallsBackToDrySourceRepoAndPath tests that when both RepoURL and Path
+// are empty in SyncSource, it falls back to both DrySource.RepoURL and DrySource.Path.
+func TestGetSyncSource_FallsBackToDrySourceRepoAndPath(t *testing.T) {
+	hydrator := &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        "https://example.com/dry-repo",
+			TargetRevision: "main",
+			Path:           "base",
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "hydrated",
+			// RepoURL and Path are empty, should fall back to DrySource
+		},
+	}
+
+	source := hydrator.GetSyncSource()
+	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
+	assert.Equal(t, "base", source.Path)
+	assert.Equal(t, "hydrated", source.TargetRevision)
+}
+
+// TestGetHydrateToSource_FallsBackToDrySourceRepo tests that when only RepoURL is empty
+// in SyncSource but Path is set, it only falls back to DrySource.RepoURL (not Path).
+func TestGetHydrateToSource_FallsBackToDrySourceRepo(t *testing.T) {
+	spec := &v1alpha1.ApplicationSpec{
+		SourceHydrator: &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://example.com/dry-repo",
+				TargetRevision: "main",
+				Path:           "base",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "hydrated",
+				Path:         "app",
+				// RepoURL is empty, should fall back to DrySource.RepoURL
+			},
+		},
+	}
+
+	source := spec.GetHydrateToSource()
+	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
+	assert.Equal(t, "app", source.Path) // Path should NOT fall back since it's set
+	assert.Equal(t, "hydrated", source.TargetRevision)
+}
+
+// TestGetHydrateToSource_FallsBackToDrySourceRepoAndPath tests that when both RepoURL
+// and Path are empty in SyncSource, it falls back to both DrySource values.
+func TestGetHydrateToSource_FallsBackToDrySourceRepoAndPath(t *testing.T) {
+	spec := &v1alpha1.ApplicationSpec{
+		SourceHydrator: &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://example.com/dry-repo",
+				TargetRevision: "main",
+				Path:           "base",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "hydrated",
+				// RepoURL and Path are empty, should fall back to DrySource
+			},
+		},
+	}
+
+	source := spec.GetHydrateToSource()
+	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
+	assert.Equal(t, "base", source.Path)
+	assert.Equal(t, "hydrated", source.TargetRevision)
+}
+
+// TestGetHydrateToSource_UsesHydrateToTargetBranch tests that when HydrateTo is set,
+// its TargetBranch is used instead of SyncSource.TargetBranch.
+func TestGetHydrateToSource_UsesHydrateToTargetBranch(t *testing.T) {
+	spec := &v1alpha1.ApplicationSpec{
+		SourceHydrator: &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://example.com/dry-repo",
+				TargetRevision: "main",
+				Path:           "base",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "hydrated",
+				// RepoURL and Path are empty
+			},
+			HydrateTo: &v1alpha1.HydrateTo{
+				TargetBranch: "staging",
+			},
+		},
+	}
+
+	source := spec.GetHydrateToSource()
+	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
+	assert.Equal(t, "base", source.Path)
+	assert.Equal(t, "staging", source.TargetRevision) // Uses HydrateTo.TargetBranch
 }
