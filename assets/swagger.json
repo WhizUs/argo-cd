@@ -1752,6 +1752,12 @@
             "description": "versionId from historical data (for multi source apps).",
             "name": "versionId",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "sourceType specifies which source to use for hydrator apps: \"dry\" or \"hydrated\".\nIf not specified, the server will attempt to infer the source from the revision.",
+            "name": "sourceType",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1816,6 +1822,12 @@
             "description": "versionId from historical data (for multi source apps).",
             "name": "versionId",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "sourceType specifies which source to use for hydrator apps: \"dry\" or \"hydrated\".\nIf not specified, the server will attempt to infer the source from the revision.",
+            "name": "sourceType",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1879,6 +1891,12 @@
             "format": "int32",
             "description": "versionId from historical data (for multi source apps).",
             "name": "versionId",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "sourceType specifies which source to use for hydrator apps: \"dry\" or \"hydrated\".\nIf not specified, the server will attempt to infer the source from the revision.",
+            "name": "sourceType",
             "in": "query"
           }
         ],

@@ -296,11 +296,18 @@ func (h *Hydrator) getAppsForHydrationKey(hydrationKey types.HydrationQueueKey) 
 	return relevantApps, nil
 }
 
+// hydrationDestKey is a struct key for tracking unique hydration destinations.
+// Using a struct instead of string formatting better communicates intent and guarantees no collisions.
+type hydrationDestKey struct {
+	repoURL string
+	path    string
+}
+
 // validateApplications checks that all applications are valid for hydration.
 func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*appv1.AppProject, map[string]error) {
 	projects := make(map[string]*appv1.AppProject)
 	errors := make(map[string]error)
-	uniquePaths := make(map[string]string, len(apps))
+	uniquePaths := make(map[hydrationDestKey]string, len(apps))
 
 	for _, app := range apps {
 		// Get the project for the app and validate if the app is allowed to use the source.
@@ -338,11 +345,11 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 
 		// TODO: test the dupe detection
 		// TODO: normalize the path to avoid "path/.." from being treated as different from "."
-		// Use a combination of repo URL and path for uniqueness since apps can hydrate to different repos
-		destKey := fmt.Sprintf("%s:%s", hydrateToSource.RepoURL, destPath)
+		// Use a struct key for uniqueness since apps can hydrate to different repos
+		destKey := hydrationDestKey{repoURL: hydrateToSource.RepoURL, path: destPath}
 		if appName, ok := uniquePaths[destKey]; ok {
-			errors[app.QualifiedName()] = fmt.Errorf("app %s hydrator use the same destination: %v", appName, destKey)
-			errors[appName] = fmt.Errorf("app %s hydrator use the same destination: %v", app.QualifiedName(), destKey)
+			errors[app.QualifiedName()] = fmt.Errorf("app %s hydrator uses the same destination: repo=%s, path=%s", appName, destKey.repoURL, destKey.path)
+			errors[appName] = fmt.Errorf("app %s hydrator uses the same destination: repo=%s, path=%s", app.QualifiedName(), destKey.repoURL, destKey.path)
 			continue
 		}
 		uniquePaths[destKey] = app.QualifiedName()

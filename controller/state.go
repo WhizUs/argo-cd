@@ -252,6 +252,10 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 
 		revision := revisions[i]
 
+		// Always use destination.namespace when available. The namespace is static metadata about
+		// where the application should be deployed, not runtime cluster state. It's needed for
+		// Helm charts to use the correct namespace (e.g., .Release.Namespace) instead of defaulting
+		// to the Application CR's namespace (typically "argocd").
 		appNamespace := app.Spec.Destination.Namespace
 		apiVersions := argo.APIResourcesToStrings(apiResources, true)
 		if !sendRuntimeState {

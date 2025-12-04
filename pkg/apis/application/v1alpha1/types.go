@@ -453,12 +453,9 @@ type DrySource struct {
 // SyncSource specifies a location from which hydrated manifests may be synced. If RepoURL is not set, it is assumed
 // to be the same as the associated DrySource config in the SourceHydrator.
 type SyncSource struct {
-	// RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
-	// the DrySource.RepoURL.
-	RepoURL string `json:"repoURL,omitempty" protobuf:"bytes,1,opt,name=repoURL"`
 	// TargetBranch is the branch from which hydrated manifests will be synced.
 	// If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
-	TargetBranch string `json:"targetBranch" protobuf:"bytes,2,name=targetBranch"`
+	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
 	// Path is a directory path within the git repository where hydrated manifests should be committed to and synced
 	// from. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which
 	// hydrated manifests will be synced.
@@ -466,7 +463,10 @@ type SyncSource struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
-	Path string `json:"path" protobuf:"bytes,3,name=path"`
+	Path string `json:"path" protobuf:"bytes,2,name=path"`
+	// RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
+	// the DrySource.RepoURL.
+	RepoURL string `json:"repoURL,omitempty" protobuf:"bytes,3,opt,name=repoURL"`
 }
 
 // HydrateTo specifies a branch to which hydrated manifests should be pushed as a "staging area" before being moved to

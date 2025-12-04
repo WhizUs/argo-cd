@@ -1711,6 +1711,32 @@ func resolveSourceHydratorRepoURL(app *v1alpha1.Application, revision, defaultRe
 	return defaultRepoURL
 }
 
+// resolveSourceHydratorRepoURLWithSourceType determines the correct repository URL for a given revision
+// when using sourceHydrator. If sourceType is explicitly specified ("dry" or "hydrated"), it uses
+// the corresponding repo URL directly. Otherwise, it falls back to inference logic for backward compatibility.
+func resolveSourceHydratorRepoURLWithSourceType(app *v1alpha1.Application, revision, sourceType, defaultRepoURL string) string {
+	// If no sourceHydrator is configured, return the default
+	if app.Spec.SourceHydrator == nil {
+		return defaultRepoURL
+	}
+
+	// If sourceType is explicitly specified, use the corresponding repo URL directly
+	switch sourceType {
+	case "dry":
+		// Use dry source repo URL from the spec
+		return app.Spec.SourceHydrator.DrySource.RepoURL
+	case "hydrated":
+		// Use sync source repo URL (or dry source if sync source has no different repo)
+		if app.Spec.SourceHydrator.SyncSource.RepoURL != "" {
+			return app.Spec.SourceHydrator.SyncSource.RepoURL
+		}
+		return app.Spec.SourceHydrator.DrySource.RepoURL
+	default:
+		// Fall back to inference logic for backward compatibility
+		return resolveSourceHydratorRepoURL(app, revision, defaultRepoURL)
+	}
+}
+
 func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
 	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
@@ -1722,8 +1748,10 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, fmt.Errorf("error getting app source by source index and version ID: %w", err)
 	}
 
-	// Resolve the correct repo URL for sourceHydrator apps (handles both DrySHA and HydratedSHA)
-	repoURL := resolveSourceHydratorRepoURL(a, q.GetRevision(), source.RepoURL)
+	// Resolve the correct repo URL for sourceHydrator apps
+	// If sourceType is explicitly specified, use the corresponding repo URL directly.
+	// Otherwise, fall back to inference logic for backward compatibility.
+	repoURL := resolveSourceHydratorRepoURLWithSourceType(a, q.GetRevision(), q.GetSourceType(), source.RepoURL)
 
 	repo, err := s.db.GetRepository(ctx, repoURL, proj.Name)
 	if err != nil {

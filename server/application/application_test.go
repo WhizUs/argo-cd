@@ -5790,6 +5790,117 @@ func Test_resolveSourceHydratorRepoURL_LastSuccessfulOperationOnly(t *testing.T)
 	})
 }
 
+// Test_resolveSourceHydratorRepoURLWithSourceType tests the explicit sourceType parameter handling
+func Test_resolveSourceHydratorRepoURLWithSourceType(t *testing.T) {
+	t.Parallel()
+
+	const (
+		defaultRepoURL    = "https://github.com/org/default-repo"
+		drySourceRepoURL  = "https://github.com/org/dry-source"
+		syncSourceRepoURL = "https://github.com/org/sync-source"
+		drySHA            = "abc1234567890abcdef1234567890abcdef12345" // 40 chars
+	)
+
+	t.Run("Non-hydrator app returns defaultRepoURL regardless of sourceType", func(t *testing.T) {
+		t.Parallel()
+		app := &v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				SourceHydrator: nil,
+			},
+		}
+		result := resolveSourceHydratorRepoURLWithSourceType(app, drySHA, "dry", defaultRepoURL)
+		assert.Equal(t, defaultRepoURL, result)
+	})
+
+	t.Run("sourceType 'dry' returns DrySource.RepoURL", func(t *testing.T) {
+		t.Parallel()
+		app := &v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				SourceHydrator: &v1alpha1.SourceHydrator{
+					DrySource:  v1alpha1.DrySource{RepoURL: drySourceRepoURL},
+					SyncSource: v1alpha1.SyncSource{RepoURL: syncSourceRepoURL},
+				},
+			},
+		}
+		result := resolveSourceHydratorRepoURLWithSourceType(app, drySHA, "dry", defaultRepoURL)
+		assert.Equal(t, drySourceRepoURL, result)
+	})
+
+	t.Run("sourceType 'hydrated' returns SyncSource.RepoURL when set", func(t *testing.T) {
+		t.Parallel()
+		app := &v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				SourceHydrator: &v1alpha1.SourceHydrator{
+					DrySource:  v1alpha1.DrySource{RepoURL: drySourceRepoURL},
+					SyncSource: v1alpha1.SyncSource{RepoURL: syncSourceRepoURL},
+				},
+			},
+		}
+		result := resolveSourceHydratorRepoURLWithSourceType(app, drySHA, "hydrated", defaultRepoURL)
+		assert.Equal(t, syncSourceRepoURL, result)
+	})
+
+	t.Run("sourceType 'hydrated' returns DrySource.RepoURL when SyncSource.RepoURL is empty", func(t *testing.T) {
+		t.Parallel()
+		app := &v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				SourceHydrator: &v1alpha1.SourceHydrator{
+					DrySource:  v1alpha1.DrySource{RepoURL: drySourceRepoURL},
+					SyncSource: v1alpha1.SyncSource{RepoURL: ""}, // Empty SyncSource.RepoURL
+				},
+			},
+		}
+		result := resolveSourceHydratorRepoURLWithSourceType(app, drySHA, "hydrated", defaultRepoURL)
+		assert.Equal(t, drySourceRepoURL, result)
+	})
+
+	t.Run("Empty sourceType falls back to inference logic", func(t *testing.T) {
+		t.Parallel()
+		app := &v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				SourceHydrator: &v1alpha1.SourceHydrator{
+					DrySource:  v1alpha1.DrySource{RepoURL: drySourceRepoURL},
+					SyncSource: v1alpha1.SyncSource{RepoURL: syncSourceRepoURL},
+				},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation: &v1alpha1.HydrateOperation{
+						DrySHA:      drySHA,
+						HydratedSHA: "def1234567890abcdef1234567890abcdef12345",
+						SourceHydrator: v1alpha1.SourceHydrator{
+							DrySource:  v1alpha1.DrySource{RepoURL: drySourceRepoURL},
+							SyncSource: v1alpha1.SyncSource{RepoURL: syncSourceRepoURL},
+						},
+					},
+				},
+			},
+		}
+		// Empty sourceType should use inference - drySHA matches CurrentOperation.DrySHA
+		result := resolveSourceHydratorRepoURLWithSourceType(app, drySHA, "", defaultRepoURL)
+		assert.Equal(t, drySourceRepoURL, result)
+	})
+
+	t.Run("Unknown sourceType falls back to inference logic", func(t *testing.T) {
+		t.Parallel()
+		unknownSHA := "fff1234567890abcdef1234567890abcdef12345"
+		app := &v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				SourceHydrator: &v1alpha1.SourceHydrator{
+					DrySource:  v1alpha1.DrySource{RepoURL: drySourceRepoURL},
+					SyncSource: v1alpha1.SyncSource{RepoURL: syncSourceRepoURL},
+				},
+			},
+			Status: v1alpha1.ApplicationStatus{
+				SourceHydrator: v1alpha1.SourceHydratorStatus{},
+			},
+		}
+		// Unknown sourceType with unknown SHA should return defaultRepoURL
+		result := resolveSourceHydratorRepoURLWithSourceType(app, unknownSHA, "unknown", defaultRepoURL)
+		assert.Equal(t, defaultRepoURL, result)
+	})
+}
+
 func TestServerSideDiff(t *testing.T) {
 	// Create test projects (avoid "default" which is already created by newTestAppServerWithEnforcerConfigure)
 	testProj := &v1alpha1.AppProject{
