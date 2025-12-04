@@ -3681,7 +3681,7 @@ func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
 		syncSourcePath    = "apps/sync"
 	)
 
-	t.Run("SourceHydrator with CurrentOperation uses SyncSource.RepoURL", func(t *testing.T) {
+	t.Run("SourceHydrator with sourceType=hydrated uses SyncSource.RepoURL from Spec", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		testApp := newTestApp(func(app *v1alpha1.Application) {
@@ -3696,20 +3696,6 @@ func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
 					RepoURL:      syncSourceRepoURL,
 					TargetBranch: "env/test",
 					Path:         syncSourcePath,
-				},
-			}
-			app.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
-				CurrentOperation: &v1alpha1.HydrateOperation{
-					SourceHydrator: v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL: drySourceRepoURL,
-							Path:    drySourcePath,
-						},
-						SyncSource: v1alpha1.SyncSource{
-							RepoURL: syncSourceRepoURL,
-							Path:    syncSourcePath,
-						},
-					},
 				},
 			}
 		})
@@ -3728,8 +3714,9 @@ func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
 		go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
 
 		_, err := appServer.Get(t.Context(), &application.ApplicationQuery{
-			Name:    &testApp.Name,
-			Refresh: ptr.To(string(v1alpha1.RefreshTypeHard)),
+			Name:       &testApp.Name,
+			Refresh:    ptr.To(string(v1alpha1.RefreshTypeHard)),
+			SourceType: ptr.To("hydrated"),
 		})
 		require.NoError(t, err)
 		require.NotNil(t, capturedQuery)
@@ -3743,7 +3730,7 @@ func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
 		}
 	})
 
-	t.Run("SourceHydrator with CurrentOperation falls back to DrySource.RepoURL when SyncSource.RepoURL is empty", func(t *testing.T) {
+	t.Run("SourceHydrator with sourceType=hydrated falls back to DrySource.RepoURL when SyncSource.RepoURL is empty", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		testApp := newTestApp(func(app *v1alpha1.Application) {
@@ -3757,20 +3744,6 @@ func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
 				SyncSource: v1alpha1.SyncSource{
 					TargetBranch: "env/test",
 					Path:         syncSourcePath,
-				},
-			}
-			app.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
-				CurrentOperation: &v1alpha1.HydrateOperation{
-					SourceHydrator: v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL: drySourceRepoURL,
-							Path:    drySourcePath,
-						},
-						SyncSource: v1alpha1.SyncSource{
-							RepoURL: "", // Empty
-							Path:    syncSourcePath,
-						},
-					},
 				},
 			}
 		})
@@ -3789,8 +3762,9 @@ func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
 		go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
 
 		_, err := appServer.Get(t.Context(), &application.ApplicationQuery{
-			Name:    &testApp.Name,
-			Refresh: ptr.To(string(v1alpha1.RefreshTypeHard)),
+			Name:       &testApp.Name,
+			Refresh:    ptr.To(string(v1alpha1.RefreshTypeHard)),
+			SourceType: ptr.To("hydrated"),
 		})
 		require.NoError(t, err)
 		require.NotNil(t, capturedQuery)
@@ -3804,10 +3778,9 @@ func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
 		}
 	})
 
-	t.Run("SourceHydrator with LastSuccessfulOperation uses SyncSource.RepoURL", func(t *testing.T) {
+	t.Run("SourceHydrator with sourceType=hydrated uses SyncSource.RepoURL from Spec", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
-		lastSuccessSyncRepoURL := "https://github.com/org/last-sync-source"
 		testApp := newTestApp(func(app *v1alpha1.Application) {
 			app.ResourceVersion = "1"
 			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
@@ -3822,21 +3795,6 @@ func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
 					Path:         syncSourcePath,
 				},
 			}
-			app.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
-				CurrentOperation: nil, // No current operation
-				LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
-					SourceHydrator: v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL: drySourceRepoURL,
-							Path:    drySourcePath,
-						},
-						SyncSource: v1alpha1.SyncSource{
-							RepoURL: lastSuccessSyncRepoURL,
-							Path:    syncSourcePath,
-						},
-					},
-				},
-			}
 		})
 		appServer := newTestAppServer(t, testApp)
 
@@ -3853,12 +3811,13 @@ func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
 		go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
 
 		_, err := appServer.Get(t.Context(), &application.ApplicationQuery{
-			Name:    &testApp.Name,
-			Refresh: ptr.To(string(v1alpha1.RefreshTypeHard)),
+			Name:       &testApp.Name,
+			Refresh:    ptr.To(string(v1alpha1.RefreshTypeHard)),
+			SourceType: ptr.To("hydrated"),
 		})
 		require.NoError(t, err)
 		require.NotNil(t, capturedQuery)
-		assert.Equal(t, lastSuccessSyncRepoURL, capturedQuery.Repo.Repo)
+		assert.Equal(t, syncSourceRepoURL, capturedQuery.Repo.Repo)
 
 		select {
 		case <-ch:
@@ -3868,10 +3827,9 @@ func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
 		}
 	})
 
-	t.Run("SourceHydrator with LastSuccessfulOperation falls back to DrySource.RepoURL", func(t *testing.T) {
+	t.Run("SourceHydrator with sourceType=hydrated falls back to DrySource.RepoURL when SyncSource.RepoURL is empty", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
-		lastSuccessDryRepoURL := "https://github.com/org/last-dry-source"
 		testApp := newTestApp(func(app *v1alpha1.Application) {
 			app.ResourceVersion = "1"
 			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
@@ -3885,21 +3843,6 @@ func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
 					Path:         syncSourcePath,
 				},
 			}
-			app.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
-				CurrentOperation: nil, // No current operation
-				LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
-					SourceHydrator: v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL: lastSuccessDryRepoURL,
-							Path:    drySourcePath,
-						},
-						SyncSource: v1alpha1.SyncSource{
-							RepoURL: "", // Empty
-							Path:    syncSourcePath,
-						},
-					},
-				},
-			}
 		})
 		appServer := newTestAppServer(t, testApp)
 
@@ -3916,12 +3859,13 @@ func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
 		go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
 
 		_, err := appServer.Get(t.Context(), &application.ApplicationQuery{
-			Name:    &testApp.Name,
-			Refresh: ptr.To(string(v1alpha1.RefreshTypeHard)),
+			Name:       &testApp.Name,
+			Refresh:    ptr.To(string(v1alpha1.RefreshTypeHard)),
+			SourceType: ptr.To("hydrated"),
 		})
 		require.NoError(t, err)
 		require.NotNil(t, capturedQuery)
-		assert.Equal(t, lastSuccessDryRepoURL, capturedQuery.Repo.Repo)
+		assert.Equal(t, drySourceRepoURL, capturedQuery.Repo.Repo)
 
 		select {
 		case <-ch:
@@ -3981,7 +3925,7 @@ func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
 		}
 	})
 
-	t.Run("SourceHydrator with no Status operations falls back to Spec DrySource.RepoURL when SyncSource.RepoURL is empty", func(t *testing.T) {
+	t.Run("SourceHydrator defaults to DrySource.RepoURL when sourceType is not specified", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		testApp := newTestApp(func(app *v1alpha1.Application) {
