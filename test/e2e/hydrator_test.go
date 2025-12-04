@@ -50,6 +50,8 @@ func TestHydrateTo(t *testing.T) {
 		When().
 		// Will now hydrate to the sync source branch.
 		AppSet("--hydrate-to-branch", "").
+		// a new git commit, that has a new revisionHistoryLimit.
+		PatchFile("guestbook/guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 10}]`).
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
 		Sync().
@@ -83,6 +85,8 @@ func TestAddingApp(t *testing.T) {
 		SyncSourceBranch("env/test").
 		When().
 		CreateApp().
+		// a new git commit, that has a new revisionHistoryLimit.
+		PatchFile("guestbook/guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 10}]`).
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
 		Sync().
