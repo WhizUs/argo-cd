@@ -1662,79 +1662,27 @@ func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application
 	})
 }
 
-// matchHydratorRevisionToRepoURL returns the repo URL if revision matches drySHA or hydratedSHA.
-// DrySHA always comes from drySource repository.
-// HydratedSHA comes from syncSource repository (or drySource if syncSource has no different repo).
-func matchHydratorRevisionToRepoURL(revision, drySHA, hydratedSHA string, hydrator *v1alpha1.SourceHydrator) (string, bool) {
-	if drySHA == revision {
-		return hydrator.DrySource.RepoURL, true
-	}
-	if hydratedSHA == revision {
-		if hydrator.SyncSource.RepoURL != "" {
-			return hydrator.SyncSource.RepoURL, true
-		}
-		return hydrator.DrySource.RepoURL, true
-	}
-	return "", false
-}
-
-// resolveSourceHydratorRepoURL determines the correct repository URL for a given revision
-// when using sourceHydrator. It checks CurrentOperation, LastSuccessfulOperation, and
-// sync.ComparedTo to handle both current and historical revisions. Uses the stored config
-// from Status (not current Spec) because commits were created with that config at hydration time.
-func resolveSourceHydratorRepoURL(app *v1alpha1.Application, revision, defaultRepoURL string) string {
-	// Only process if sourceHydrator is configured and revision is a commit SHA
-	if app.Spec.SourceHydrator == nil || !git.IsCommitSHA(revision) {
-		return defaultRepoURL
-	}
-
-	// Check CurrentOperation first (most recent/active hydration)
-	if op := app.Status.SourceHydrator.CurrentOperation; op != nil {
-		if url, found := matchHydratorRevisionToRepoURL(revision, op.DrySHA, op.HydratedSHA, &op.SourceHydrator); found {
-			return url
-		}
-	}
-	// Fallback to LastSuccessfulOperation for historical revision lookups
-	if op := app.Status.SourceHydrator.LastSuccessfulOperation; op != nil {
-		if url, found := matchHydratorRevisionToRepoURL(revision, op.DrySHA, op.HydratedSHA, &op.SourceHydrator); found {
-			return url
-		}
-	}
-
-	// Fallback to sync.ComparedTo for revisions that were synced before re-hydration
-	// This handles the case where a new hydration happened but sync.Revision still
-	// references the old hydratedSHA which was created with the previous config
-	if app.Status.Sync.Revision == revision && app.Status.Sync.ComparedTo.Source.RepoURL != "" {
-		return app.Status.Sync.ComparedTo.Source.RepoURL
-	}
-
-	return defaultRepoURL
-}
-
-// resolveSourceHydratorRepoURLWithSourceType determines the correct repository URL for a given revision
+// resolveSourceHydratorRepoURLWithSourceType determines the correct repository URL
 // when using sourceHydrator. If sourceType is explicitly specified ("dry" or "hydrated"), it uses
-// the corresponding repo URL directly. Otherwise, it falls back to inference logic for backward compatibility.
-func resolveSourceHydratorRepoURLWithSourceType(app *v1alpha1.Application, revision, sourceType, defaultRepoURL string) string {
+// the corresponding repo URL directly.
+func resolveSourceHydratorRepoURLWithSourceType(app *v1alpha1.Application, sourceType, defaultRepoURL string) string {
 	// If no sourceHydrator is configured, return the default
 	if app.Spec.SourceHydrator == nil {
 		return defaultRepoURL
 	}
 
-	// If sourceType is explicitly specified, use the corresponding repo URL directly
-	switch sourceType {
-	case "dry":
-		// Use dry source repo URL from the spec
+	// Use the corresponding repo URL based on sourceType
+	if sourceType == "dry" {
 		return app.Spec.SourceHydrator.DrySource.RepoURL
-	case "hydrated":
+	} else if sourceType == "hydrated" {
 		// Use sync source repo URL (or dry source if sync source has no different repo)
 		if app.Spec.SourceHydrator.SyncSource.RepoURL != "" {
 			return app.Spec.SourceHydrator.SyncSource.RepoURL
 		}
 		return app.Spec.SourceHydrator.DrySource.RepoURL
-	default:
-		// Fall back to inference logic for backward compatibility
-		return resolveSourceHydratorRepoURL(app, revision, defaultRepoURL)
 	}
+
+	return defaultRepoURL
 }
 
 func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
@@ -1751,7 +1699,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	// Resolve the correct repo URL for sourceHydrator apps
 	// If sourceType is explicitly specified, use the corresponding repo URL directly.
 	// Otherwise, fall back to inference logic for backward compatibility.
-	repoURL := resolveSourceHydratorRepoURLWithSourceType(a, q.GetRevision(), q.GetSourceType(), source.RepoURL)
+	repoURL := resolveSourceHydratorRepoURLWithSourceType(a, q.GetSourceType(), source.RepoURL)
 
 	repo, err := s.db.GetRepository(ctx, repoURL, proj.Name)
 	if err != nil {
