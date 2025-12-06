@@ -2726,8 +2726,7 @@ func TestGetManifests_WithNoCache(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestGetManifests_WithSourceHydrator tests the GetManifests function with source hydrator configurations
-// This tests lines 537-572 in application.go
+// TestGetManifests_WithSourceHydrator tests the GetManifests function with source hydrator configurations.
 func TestGetManifests_WithSourceHydrator(t *testing.T) {
 	const (
 		drySourceRepoURL  = "https://github.com/org/dry-source"
@@ -3673,8 +3672,7 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	}
 }
 
-// TestGetAppRefresh_HardRefresh_WithSourceHydrator tests the hard refresh path with source hydrator
-// This tests lines 860-882 in application.go
+// TestGetAppRefresh_HardRefresh_WithSourceHydrator tests the hard refresh path with source hydrator.
 func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
 	const (
 		drySourceRepoURL  = "https://github.com/org/dry-source"
