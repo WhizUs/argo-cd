@@ -2726,8 +2726,7 @@ func TestGetManifests_WithNoCache(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestGetManifests_WithSourceHydrator tests the GetManifests function with source hydrator configurations
-// This tests lines 537-572 in application.go
+// TestGetManifests_WithSourceHydrator tests the GetManifests function with source hydrator configurations.
 func TestGetManifests_WithSourceHydrator(t *testing.T) {
 	const (
 		drySourceRepoURL  = "https://github.com/org/dry-source"
@@ -3673,8 +3672,7 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	}
 }
 
-// TestGetAppRefresh_HardRefresh_WithSourceHydrator tests the hard refresh path with source hydrator
-// This tests lines 860-882 in application.go
+// TestGetAppRefresh_HardRefresh_WithSourceHydrator tests the hard refresh path with source hydrator.
 func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
 	const (
 		drySourceRepoURL  = "https://github.com/org/dry-source"
@@ -5352,4 +5350,148 @@ func TestServerSideDiff(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "application")
 	})
+}
+
+func Test_resolveSourceHydratorRepoURLWithSourceType(t *testing.T) {
+	t.Parallel()
+
+	dryRepoURL := "https://github.com/org/dry-repo"
+	syncRepoURL := "https://github.com/org/sync-repo"
+	defaultRepoURL := "https://github.com/org/default-repo"
+
+	tests := []struct {
+		name           string
+		app            *v1alpha1.Application
+		sourceType     string
+		defaultRepoURL string
+		expected       string
+	}{
+		{
+			name: "no sourceHydrator returns default",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			sourceType:     "dry",
+			defaultRepoURL: defaultRepoURL,
+			expected:       defaultRepoURL,
+		},
+		{
+			name: "sourceType dry returns DrySource.RepoURL",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        dryRepoURL,
+							TargetRevision: "main",
+							Path:           "apps",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							RepoURL:      syncRepoURL,
+							TargetBranch: "hydrated",
+							Path:         "manifests",
+						},
+					},
+				},
+			},
+			sourceType:     "dry",
+			defaultRepoURL: defaultRepoURL,
+			expected:       dryRepoURL,
+		},
+		{
+			name: "sourceType hydrated with SyncSource.RepoURL returns SyncSource.RepoURL",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        dryRepoURL,
+							TargetRevision: "main",
+							Path:           "apps",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							RepoURL:      syncRepoURL,
+							TargetBranch: "hydrated",
+							Path:         "manifests",
+						},
+					},
+				},
+			},
+			sourceType:     "hydrated",
+			defaultRepoURL: defaultRepoURL,
+			expected:       syncRepoURL,
+		},
+		{
+			name: "sourceType hydrated without SyncSource.RepoURL returns DrySource.RepoURL",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        dryRepoURL,
+							TargetRevision: "main",
+							Path:           "apps",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							// No RepoURL set
+							TargetBranch: "hydrated",
+							Path:         "manifests",
+						},
+					},
+				},
+			},
+			sourceType:     "hydrated",
+			defaultRepoURL: defaultRepoURL,
+			expected:       dryRepoURL,
+		},
+		{
+			name: "unknown sourceType defaults to dry",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        dryRepoURL,
+							TargetRevision: "main",
+							Path:           "apps",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							RepoURL:      syncRepoURL,
+							TargetBranch: "hydrated",
+							Path:         "manifests",
+						},
+					},
+				},
+			},
+			sourceType:     "unknown",
+			defaultRepoURL: defaultRepoURL,
+			expected:       dryRepoURL,
+		},
+		{
+			name: "empty sourceType defaults to dry",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        dryRepoURL,
+							TargetRevision: "main",
+							Path:           "apps",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							RepoURL:      syncRepoURL,
+							TargetBranch: "hydrated",
+							Path:         "manifests",
+						},
+					},
+				},
+			},
+			sourceType:     "",
+			defaultRepoURL: defaultRepoURL,
+			expected:       dryRepoURL,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := resolveSourceHydratorRepoURLWithSourceType(tt.app, tt.sourceType, tt.defaultRepoURL)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }

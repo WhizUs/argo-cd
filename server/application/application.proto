@@ -56,7 +56,7 @@ message RevisionMetadataQuery{
 	// versionId from historical data (for multi source apps)
 	optional int32 versionId = 6;
 	// sourceType specifies which source to use for hydrator apps: "dry" or "hydrated".
-	// If not specified, the server will attempt to infer the source from the revision.
+	// If not specified, defaults to "dry".
 	optional string sourceType = 7;
 }
 
