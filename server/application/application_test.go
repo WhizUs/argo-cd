@@ -5444,7 +5444,7 @@ func Test_resolveSourceHydratorRepoURLWithSourceType(t *testing.T) {
 			expected:       dryRepoURL,
 		},
 		{
-			name: "unknown sourceType returns default",
+			name: "unknown sourceType defaults to dry",
 			app: &v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{
 					SourceHydrator: &v1alpha1.SourceHydrator{
@@ -5463,10 +5463,10 @@ func Test_resolveSourceHydratorRepoURLWithSourceType(t *testing.T) {
 			},
 			sourceType:     "unknown",
 			defaultRepoURL: defaultRepoURL,
-			expected:       defaultRepoURL,
+			expected:       dryRepoURL,
 		},
 		{
-			name: "empty sourceType returns default",
+			name: "empty sourceType defaults to dry",
 			app: &v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{
 					SourceHydrator: &v1alpha1.SourceHydrator{
@@ -5485,7 +5485,7 @@ func Test_resolveSourceHydratorRepoURLWithSourceType(t *testing.T) {
 			},
 			sourceType:     "",
 			defaultRepoURL: defaultRepoURL,
-			expected:       defaultRepoURL,
+			expected:       dryRepoURL,
 		},
 	}
 
