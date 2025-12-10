@@ -1755,7 +1755,7 @@
           },
           {
             "type": "string",
-            "description": "sourceType specifies which source to use for hydrator apps: \"dry\" or \"hydrated\".\nIf not specified, the server will attempt to infer the source from the revision.",
+            "description": "sourceType specifies which source to use for hydrator apps: \"dry\" or \"hydrated\".\nIf not specified, defaults to \"dry\".",
             "name": "sourceType",
             "in": "query"
           }
@@ -1825,7 +1825,7 @@
           },
           {
             "type": "string",
-            "description": "sourceType specifies which source to use for hydrator apps: \"dry\" or \"hydrated\".\nIf not specified, the server will attempt to infer the source from the revision.",
+            "description": "sourceType specifies which source to use for hydrator apps: \"dry\" or \"hydrated\".\nIf not specified, defaults to \"dry\".",
             "name": "sourceType",
             "in": "query"
           }
@@ -1895,7 +1895,7 @@
           },
           {
             "type": "string",
-            "description": "sourceType specifies which source to use for hydrator apps: \"dry\" or \"hydrated\".\nIf not specified, the server will attempt to infer the source from the revision.",
+            "description": "sourceType specifies which source to use for hydrator apps: \"dry\" or \"hydrated\".\nIf not specified, defaults to \"dry\".",
             "name": "sourceType",
             "in": "query"
           }
