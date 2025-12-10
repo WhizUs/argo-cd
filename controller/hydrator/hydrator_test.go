@@ -802,6 +802,27 @@ func TestValidateApplications_Success(t *testing.T) {
 	assert.Equal(t, proj, projects[app2.Spec.Project])
 }
 
+func TestValidateApplications_SamePathDifferentRepos(t *testing.T) {
+	// Tests that apps with the same path but different repo URLs are NOT considered duplicates.
+	// This verifies the struct key properly distinguishes by both repoURL and path.
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app1 := newTestApp("app1")
+	app2 := newTestApp("app2")
+	// Same path but different repo URLs
+	app2.Spec.SourceHydrator.SyncSource.Path = app1.Spec.SourceHydrator.SyncSource.Path
+	app2.Spec.SourceHydrator.SyncSource.RepoURL = "https://example.com/other-repo"
+	proj := newTestProject()
+	proj.Spec.SourceRepos = []string{"*"} // Allow all repos
+	d.EXPECT().GetProcessableAppProj(app1).Return(proj, nil).Once()
+	d.EXPECT().GetProcessableAppProj(app2).Return(proj, nil).Once()
+	h := &Hydrator{dependencies: d}
+
+	projects, errs := h.validateApplications([]*v1alpha1.Application{app1, app2})
+	require.NotNil(t, projects)
+	require.Empty(t, errs)
+}
+
 func TestGenericHydrationError(t *testing.T) {
 	t.Run("no errors", func(t *testing.T) {
 		err := genericHydrationError(map[string]error{})
