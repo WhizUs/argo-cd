@@ -4865,3 +4865,158 @@ func TestSourceHydrator_Equals(t *testing.T) {
 		})
 	}
 }
+
+func TestSourceHydrator_GetSyncSource(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		hydrator SourceHydrator
+		expected ApplicationSource
+	}{
+		{
+			name: "SyncSource.RepoURL is set - uses SyncSource values",
+			hydrator: SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        "https://github.com/org/dry-repo",
+					TargetRevision: "main",
+					Path:           "dry-path",
+				},
+				SyncSource: SyncSource{
+					RepoURL:      "https://github.com/org/sync-repo",
+					TargetBranch: "hydrated",
+					Path:         "sync-path",
+				},
+			},
+			expected: ApplicationSource{
+				RepoURL:        "https://github.com/org/sync-repo",
+				Path:           "sync-path",
+				TargetRevision: "hydrated",
+			},
+		},
+		{
+			name: "SyncSource.RepoURL empty - falls back to DrySource.RepoURL, keeps SyncSource.Path",
+			hydrator: SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        "https://github.com/org/dry-repo",
+					TargetRevision: "main",
+					Path:           "dry-path",
+				},
+				SyncSource: SyncSource{
+					RepoURL:      "",
+					TargetBranch: "hydrated",
+					Path:         "sync-path",
+				},
+			},
+			expected: ApplicationSource{
+				RepoURL:        "https://github.com/org/dry-repo",
+				Path:           "sync-path",
+				TargetRevision: "hydrated",
+			},
+		},
+		{
+			name: "SyncSource.RepoURL and SyncSource.Path both empty - uses DrySource for both",
+			hydrator: SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        "https://github.com/org/dry-repo",
+					TargetRevision: "main",
+					Path:           "dry-path",
+				},
+				SyncSource: SyncSource{
+					RepoURL:      "",
+					TargetBranch: "hydrated",
+					Path:         "",
+				},
+			},
+			expected: ApplicationSource{
+				RepoURL:        "https://github.com/org/dry-repo",
+				Path:           "dry-path",
+				TargetRevision: "hydrated",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := tt.hydrator.GetSyncSource()
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestSourceHydrator_GetDrySource(t *testing.T) {
+	t.Parallel()
+
+	hydrator := SourceHydrator{
+		DrySource: DrySource{
+			RepoURL:        "https://github.com/org/dry-repo",
+			TargetRevision: "main",
+			Path:           "apps",
+		},
+		SyncSource: SyncSource{
+			RepoURL:      "https://github.com/org/sync-repo",
+			TargetBranch: "hydrated",
+			Path:         "manifests",
+		},
+	}
+
+	expected := ApplicationSource{
+		RepoURL:        "https://github.com/org/dry-repo",
+		Path:           "apps",
+		TargetRevision: "main",
+	}
+
+	result := hydrator.GetDrySource()
+	assert.Equal(t, expected, result)
+}
+
+func TestHydrateTo_DeepEquals(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		in       *HydrateTo
+		to       *HydrateTo
+		expected bool
+	}{
+		{
+			name:     "both nil",
+			in:       nil,
+			to:       nil,
+			expected: true,
+		},
+		{
+			name:     "in nil, to not nil",
+			in:       nil,
+			to:       &HydrateTo{TargetBranch: "env/prod"},
+			expected: false,
+		},
+		{
+			name:     "in not nil, to nil",
+			in:       &HydrateTo{TargetBranch: "env/prod"},
+			to:       nil,
+			expected: false,
+		},
+		{
+			name:     "both non-nil and equal",
+			in:       &HydrateTo{TargetBranch: "env/prod"},
+			to:       &HydrateTo{TargetBranch: "env/prod"},
+			expected: true,
+		},
+		{
+			name:     "both non-nil but different",
+			in:       &HydrateTo{TargetBranch: "env/prod"},
+			to:       &HydrateTo{TargetBranch: "env/staging"},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := tt.in.DeepEquals(tt.to)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
