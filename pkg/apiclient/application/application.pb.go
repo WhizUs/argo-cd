@@ -221,7 +221,7 @@ type RevisionMetadataQuery struct {
 	// versionId from historical data (for multi source apps)
 	VersionId *int32 `protobuf:"varint,6,opt,name=versionId" json:"versionId,omitempty"`
 	// sourceType specifies which source to use for hydrator apps: "dry" or "hydrated".
-	// If not specified, the server will attempt to infer the source from the revision.
+	// If not specified, defaults to "dry".
 	SourceType           *string  `protobuf:"bytes,7,opt,name=sourceType" json:"sourceType,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
