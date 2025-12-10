@@ -1242,7 +1242,7 @@ func TestGetSyncSource_FallsBackToDrySourceRepoAndPath(t *testing.T) {
 
 	source := hydrator.GetSyncSource()
 	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
-	assert.Equal(t, "", source.Path)
+	assert.Empty(t, source.Path)
 	assert.Equal(t, "hydrated", source.TargetRevision)
 }
 
@@ -1289,7 +1289,7 @@ func TestGetHydrateToSource_FallsBackToDrySourceRepoAndPath(t *testing.T) {
 
 	source := spec.GetHydrateToSource()
 	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
-	assert.Equal(t, "", source.Path)
+	assert.Empty(t, source.Path)
 	assert.Equal(t, "hydrated", source.TargetRevision)
 }
 
@@ -1315,6 +1315,6 @@ func TestGetHydrateToSource_UsesHydrateToTargetBranch(t *testing.T) {
 
 	source := spec.GetHydrateToSource()
 	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
-	assert.Equal(t, "", source.Path)                  // Path should remain empty, not fall back to DrySource.Path
+	assert.Empty(t, source.Path)                      // Path should remain empty, not fall back to DrySource.Path
 	assert.Equal(t, "staging", source.TargetRevision) // Uses HydrateTo.TargetBranch
 }
