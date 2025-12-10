@@ -4915,7 +4915,7 @@ func TestSourceHydrator_GetSyncSource(t *testing.T) {
 			},
 		},
 		{
-			name: "SyncSource.RepoURL and SyncSource.Path both empty - uses DrySource for both",
+			name: "SyncSource.RepoURL and SyncSource.Path both empty - uses DrySource for RepoURL only, Path remains empty",
 			hydrator: SourceHydrator{
 				DrySource: DrySource{
 					RepoURL:        "https://github.com/org/dry-repo",
@@ -4930,7 +4930,7 @@ func TestSourceHydrator_GetSyncSource(t *testing.T) {
 			},
 			expected: ApplicationSource{
 				RepoURL:        "https://github.com/org/dry-repo",
-				Path:           "dry-path",
+				Path:           "",
 				TargetRevision: "hydrated",
 			},
 		},
