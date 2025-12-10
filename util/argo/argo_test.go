@@ -457,7 +457,7 @@ func TestValidateRepo(t *testing.T) {
 }
 
 // TestValidateRepoWithSourceHydrator tests that ValidateRepo uses the dry source for manifest generation
-// when source hydrator is configured. This tests lines 485-486 in argo.go.
+// when source hydrator is configured.
 func TestValidateRepoWithSourceHydrator(t *testing.T) {
 	repoPath, err := filepath.Abs("./../..")
 	require.NoError(t, err)
@@ -505,7 +505,7 @@ func TestValidateRepoWithSourceHydrator(t *testing.T) {
 	repoClient := &mocks.RepoServerServiceClient{}
 
 	// The key assertion: when source hydrator is configured, ValidateRepo should use the dry source
-	// for manifest generation. This tests lines 485-486 in argo.go.
+	// for manifest generation.
 	drySource := app.Spec.SourceHydrator.GetDrySource()
 	repoClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(req *apiclient.RepoServerAppDetailsQuery) bool {
 		// Verify that the source used is the dry source, not the sync source
