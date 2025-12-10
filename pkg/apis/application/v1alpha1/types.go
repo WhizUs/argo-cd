@@ -2289,6 +2289,11 @@ type Cluster struct {
 	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,12,opt,name=labels"`
 	// Annotations for cluster secret metadata
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
+
+	// The embedded metav1.ObjectMeta field is purely here to please the informer when converting from a v1.Secret to a Cluster.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +optional
+	metav1.ObjectMeta `json:"-,omitempty"`
 }
 
 func (c *Cluster) Sanitized() *Cluster {
@@ -3368,6 +3373,26 @@ func (app *Application) IsHydrateRequested() bool {
 		return true
 	}
 	return false
+}
+
+func (app *Application) HasPreDeleteFinalizer(stage ...string) bool {
+	return getFinalizerIndex(app.ObjectMeta, strings.Join(append([]string{PreDeleteFinalizerName}, stage...), "/")) > -1
+}
+
+func (app *Application) SetPreDeleteFinalizer(stage ...string) {
+	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PreDeleteFinalizerName}, stage...), "/"), true)
+}
+
+func (app *Application) UnSetPreDeleteFinalizer(stage ...string) {
+	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PreDeleteFinalizerName}, stage...), "/"), false)
+}
+
+func (app *Application) UnSetPreDeleteFinalizerAll() {
+	for _, finalizer := range app.Finalizers {
+		if strings.HasPrefix(finalizer, PreDeleteFinalizerName) {
+			setFinalizer(&app.ObjectMeta, finalizer, false)
+		}
+	}
 }
 
 func (app *Application) HasPostDeleteFinalizer(stage ...string) bool {
