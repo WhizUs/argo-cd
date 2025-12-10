@@ -252,13 +252,9 @@ func (spec *ApplicationSpec) GetSource() ApplicationSource {
 func (spec *ApplicationSpec) GetHydrateToSource() ApplicationSource {
 	if spec.SourceHydrator != nil {
 		targetRevision := spec.SourceHydrator.SyncSource.TargetBranch
-		path := spec.SourceHydrator.SyncSource.Path
 		repoURL := spec.SourceHydrator.SyncSource.RepoURL
 		if repoURL == "" {
 			repoURL = spec.SourceHydrator.DrySource.RepoURL
-			if path == "" {
-				path = spec.SourceHydrator.DrySource.Path
-			}
 		}
 
 		if spec.SourceHydrator.HydrateTo != nil {
@@ -266,7 +262,7 @@ func (spec *ApplicationSpec) GetHydrateToSource() ApplicationSource {
 		}
 		return ApplicationSource{
 			RepoURL:        repoURL,
-			Path:           path,
+			Path:           spec.SourceHydrator.SyncSource.Path,
 			TargetRevision: targetRevision,
 		}
 	}
@@ -423,16 +419,12 @@ type SourceHydrator struct {
 // GetSyncSource gets the source from which we should sync when a source hydrator is configured.
 func (s SourceHydrator) GetSyncSource() ApplicationSource {
 	repoURL := s.SyncSource.RepoURL
-	path := s.SyncSource.Path
 	if repoURL == "" {
 		repoURL = s.DrySource.RepoURL
-		if path == "" {
-			path = s.DrySource.Path
-		}
 	}
 	return ApplicationSource{
 		RepoURL:        repoURL,
-		Path:           path,
+		Path:           s.SyncSource.Path,
 		TargetRevision: s.SyncSource.TargetBranch,
 	}
 }
