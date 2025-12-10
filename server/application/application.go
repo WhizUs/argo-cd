@@ -1637,7 +1637,7 @@ func resolveSourceHydratorRepoURLWithSourceType(app *v1alpha1.Application, sourc
 	switch sourceType {
 	case "dry":
 		return app.Spec.SourceHydrator.DrySource.RepoURL
-	} else if sourceType == "hydrated" {
+	case "hydrated":
 		// Use sync source repo URL (or dry source if sync source has no different repo)
 		if app.Spec.SourceHydrator.SyncSource.RepoURL != "" {
 			return app.Spec.SourceHydrator.SyncSource.RepoURL
@@ -1647,8 +1647,6 @@ func resolveSourceHydratorRepoURLWithSourceType(app *v1alpha1.Application, sourc
 		// Default to "dry" when sourceType is not specified
 		return app.Spec.SourceHydrator.DrySource.RepoURL
 	}
-
-	return defaultRepoURL
 }
 
 func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {

@@ -281,6 +281,12 @@
             "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "sourceType specifies which source to use for hydrator apps: \"dry\" or \"hydrated\".\nIf not specified, defaults to \"dry\".",
+            "name": "sourceType",
+            "in": "query"
           }
         ],
         "responses": {
@@ -669,6 +675,12 @@
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "sourceType specifies which source to use for hydrator apps: \"dry\" or \"hydrated\".\nIf not specified, defaults to \"dry\".",
+            "name": "sourceType",
             "in": "query"
           }
         ],
@@ -4262,6 +4274,12 @@
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "sourceType specifies which source to use for hydrator apps: \"dry\" or \"hydrated\".\nIf not specified, defaults to \"dry\".",
+            "name": "sourceType",
             "in": "query"
           }
         ],
