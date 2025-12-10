@@ -1246,8 +1246,8 @@ func TestGetSyncSource_FallsBackToDrySourceRepo(t *testing.T) {
 	assert.Equal(t, "hydrated", source.TargetRevision)
 }
 
-// TestGetSyncSource_FallsBackToDrySourceRepoAndPath tests that when both RepoURL and Path
-// are empty in SyncSource, it falls back to both DrySource.RepoURL and DrySource.Path.
+// TestGetSyncSource_FallsBackToDrySourceRepoAndPath tests that when RepoURL is empty
+// in SyncSource, it falls back to DrySource.RepoURL, but Path does not fall back.
 func TestGetSyncSource_FallsBackToDrySourceRepoAndPath(t *testing.T) {
 	hydrator := &v1alpha1.SourceHydrator{
 		DrySource: v1alpha1.DrySource{
@@ -1257,13 +1257,13 @@ func TestGetSyncSource_FallsBackToDrySourceRepoAndPath(t *testing.T) {
 		},
 		SyncSource: v1alpha1.SyncSource{
 			TargetBranch: "hydrated",
-			// RepoURL and Path are empty, should fall back to DrySource
+			// RepoURL and Path are empty, RepoURL should fall back to DrySource, but Path should not
 		},
 	}
 
 	source := hydrator.GetSyncSource()
 	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
-	assert.Equal(t, "base", source.Path)
+	assert.Empty(t, source.Path)
 	assert.Equal(t, "hydrated", source.TargetRevision)
 }
 
@@ -1291,8 +1291,8 @@ func TestGetHydrateToSource_FallsBackToDrySourceRepo(t *testing.T) {
 	assert.Equal(t, "hydrated", source.TargetRevision)
 }
 
-// TestGetHydrateToSource_FallsBackToDrySourceRepoAndPath tests that when both RepoURL
-// and Path are empty in SyncSource, it falls back to both DrySource values.
+// TestGetHydrateToSource_FallsBackToDrySourceRepoAndPath tests that when RepoURL is empty
+// in SyncSource, it falls back to DrySource.RepoURL, but Path does not fall back.
 func TestGetHydrateToSource_FallsBackToDrySourceRepoAndPath(t *testing.T) {
 	spec := &v1alpha1.ApplicationSpec{
 		SourceHydrator: &v1alpha1.SourceHydrator{
@@ -1303,14 +1303,14 @@ func TestGetHydrateToSource_FallsBackToDrySourceRepoAndPath(t *testing.T) {
 			},
 			SyncSource: v1alpha1.SyncSource{
 				TargetBranch: "hydrated",
-				// RepoURL and Path are empty, should fall back to DrySource
+				// RepoURL and Path are empty, RepoURL should fall back to DrySource, but Path should not
 			},
 		},
 	}
 
 	source := spec.GetHydrateToSource()
 	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
-	assert.Equal(t, "base", source.Path)
+	assert.Empty(t, source.Path)
 	assert.Equal(t, "hydrated", source.TargetRevision)
 }
 
@@ -1336,6 +1336,6 @@ func TestGetHydrateToSource_UsesHydrateToTargetBranch(t *testing.T) {
 
 	source := spec.GetHydrateToSource()
 	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
-	assert.Equal(t, "base", source.Path)
+	assert.Empty(t, source.Path)                      // Path should remain empty, not fall back to DrySource.Path
 	assert.Equal(t, "staging", source.TargetRevision) // Uses HydrateTo.TargetBranch
 }
