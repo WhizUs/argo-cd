@@ -541,6 +541,27 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 
 		for _, source := range sources {
+			// When using sourceHydrator, only apply source hydrator logic if sourceType is explicitly specified
+			// If sourceType is not specified, GetSource() already returns SyncSource by default
+			if a.Spec.SourceHydrator != nil && q.GetSourceType() != "" {
+				sourceType := q.GetSourceType()
+
+				// Use Spec.SourceHydrator config based on sourceType
+				if sourceType == "dry" {
+					source.RepoURL = a.Spec.SourceHydrator.DrySource.RepoURL
+					source.Path = a.Spec.SourceHydrator.DrySource.Path
+				} else if sourceType == "hydrated" {
+					// Always use sync source path for hydrated type
+					source.Path = a.Spec.SourceHydrator.SyncSource.Path
+					// Use sync source repo URL, or fallback to dry source repo URL if empty
+					if a.Spec.SourceHydrator.SyncSource.RepoURL != "" {
+						source.RepoURL = a.Spec.SourceHydrator.SyncSource.RepoURL
+					} else {
+						source.RepoURL = a.Spec.SourceHydrator.DrySource.RepoURL
+					}
+				}
+			}
+
 			repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
 			if err != nil {
 				return fmt.Errorf("error getting repository: %w", err)
