@@ -1640,7 +1640,8 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	// Determine the correct repo URL to use
 	// Priority: sourceType > versionId > default
 	var repoURL string
-	if q.GetSourceType() != "" {
+	switch {
+	case q.GetSourceType() != "":
 		// When sourceType is explicitly provided, use it to determine the repo URL
 		// based on the CURRENT app spec, not the historical source. This ensures
 		// we always use the current repository configuration, even if historical
@@ -1654,13 +1655,13 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 			defaultRepoURL = source.RepoURL
 		}
 		repoURL = resolveSourceHydratorRepoURLWithSourceType(a, q.GetSourceType(), defaultRepoURL)
-	} else if q.VersionId != nil {
+	case q.VersionId != nil:
 		// For historical revisions without explicit sourceType, use the repository URL
 		// directly from the historical source. This ensures we fetch commits from the
 		// repository that was actually used at that time, even if the app configuration
 		// has changed (e.g., SyncSource.repoURL was removed).
 		repoURL = source.RepoURL
-	} else {
+	default:
 		// For current revisions without versionId or sourceType, resolve based on current spec
 		// If sourceType is not specified, defaults to "dry".
 		repoURL = resolveSourceHydratorRepoURLWithSourceType(a, q.GetSourceType(), source.RepoURL)
@@ -1686,15 +1687,16 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		// The revision is an old commit SHA from the old repo, but we're using the new repo.
 		// Get the current app spec's target revision (branch/tag) and resolve it in the new repo.
 		var targetRevision string
-		if a.Spec.SourceHydrator != nil {
+		switch {
+		case a.Spec.SourceHydrator != nil:
 			if q.GetSourceType() == "hydrated" {
 				targetRevision = a.Spec.SourceHydrator.SyncSource.TargetBranch
 			} else {
 				targetRevision = a.Spec.SourceHydrator.DrySource.TargetRevision
 			}
-		} else if a.Spec.HasMultipleSources() && len(a.Spec.Sources) > 0 {
+		case a.Spec.HasMultipleSources() && len(a.Spec.Sources) > 0:
 			targetRevision = a.Spec.Sources[0].TargetRevision
-		} else if a.Spec.Source != nil {
+		case a.Spec.Source != nil:
 			targetRevision = a.Spec.Source.TargetRevision
 		}
 
