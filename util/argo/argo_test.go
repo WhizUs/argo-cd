@@ -456,6 +456,115 @@ func TestValidateRepo(t *testing.T) {
 	assert.Equal(t, kustomizeOptions, receivedRequest.KustomizeOptions)
 }
 
+// TestValidateRepoWithSourceHydrator tests that ValidateRepo uses the dry source for manifest generation
+// when source hydrator is configured. This tests lines 485-486 in argo.go.
+func TestValidateRepoWithSourceHydrator(t *testing.T) {
+	repoPath, err := filepath.Abs("./../..")
+	require.NoError(t, err)
+
+	apiResources := []kube.APIResourceInfo{{
+		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1beta1"},
+		GroupKind:            schema.GroupKind{Kind: "Deployment"},
+	}}
+	kubeVersion := "v1.16"
+
+	drySourceRepoURL := "file://" + repoPath
+	syncSourceRepoURL := "file://" + repoPath // Use same repo for simplicity
+	repo := &argoappv1.Repository{Repo: drySourceRepoURL, Type: "git"}
+	cluster := &argoappv1.Cluster{Server: "sample server"}
+
+	app := &argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        drySourceRepoURL,
+					TargetRevision: "main",
+					Path:           "apps",
+				},
+				SyncSource: argoappv1.SyncSource{
+					RepoURL:      syncSourceRepoURL,
+					TargetBranch: "hydrated",
+					Path:         "manifests",
+				},
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Server:    cluster.Server,
+				Namespace: "default",
+			},
+		},
+	}
+
+	proj := &argoappv1.AppProject{
+		Spec: argoappv1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+		},
+	}
+
+	helmRepos := []*argoappv1.Repository{{Repo: "sample helm repo"}}
+
+	repoClient := &mocks.RepoServerServiceClient{}
+
+	// The key assertion: when source hydrator is configured, ValidateRepo should use the dry source
+	// for manifest generation. This tests lines 485-486 in argo.go.
+	drySource := app.Spec.SourceHydrator.GetDrySource()
+	repoClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(req *apiclient.RepoServerAppDetailsQuery) bool {
+		// Verify that the source used is the dry source, not the sync source
+		return req.Source.RepoURL == drySourceRepoURL &&
+			req.Source.Path == "apps" &&
+			req.Source.TargetRevision == "main"
+	})).Return(&apiclient.RepoAppDetailsResponse{}, nil).Maybe()
+
+	repoClient.EXPECT().TestRepository(mock.Anything, &apiclient.TestRepositoryRequest{
+		Repo: repo,
+	}).Return(&apiclient.TestRepositoryResponse{
+		VerifiedRepository: true,
+	}, nil).Maybe()
+
+	repoClientSet := &mocks.Clientset{RepoServerServiceClient: repoClient}
+
+	db := &dbmocks.ArgoDB{}
+
+	// GetRepository is called with the sync source URL first (from GetSources), then with dry source URL
+	db.EXPECT().GetRepository(mock.Anything, syncSourceRepoURL, "").Return(repo, nil).Maybe()
+	db.EXPECT().GetRepository(mock.Anything, drySourceRepoURL, "").Return(repo, nil).Maybe()
+	db.EXPECT().ListHelmRepositories(mock.Anything).Return(helmRepos, nil).Maybe()
+	db.EXPECT().ListOCIRepositories(mock.Anything).Return([]*argoappv1.Repository{}, nil).Maybe()
+	db.EXPECT().GetCluster(mock.Anything, app.Spec.Destination.Server).Return(cluster, nil).Maybe()
+	db.EXPECT().GetAllHelmRepositoryCredentials(mock.Anything).Return(nil, nil).Maybe()
+	db.EXPECT().GetAllOCIRepositoryCredentials(mock.Anything).Return([]*argoappv1.RepoCreds{}, nil).Maybe()
+
+	var receivedRequest *apiclient.ManifestRequest
+
+	repoClient.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(req *apiclient.ManifestRequest) bool {
+		receivedRequest = req
+		return true
+	})).Return(nil, nil).Maybe()
+
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-cm",
+			Namespace: test.FakeArgoCDNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string]string{},
+	}
+
+	kubeClient := fake.NewClientset(&cm)
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+
+	conditions, err := ValidateRepo(t.Context(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
+
+	require.NoError(t, err)
+	assert.Empty(t, conditions)
+	// Verify the request was made with the dry source
+	require.NotNil(t, receivedRequest)
+	assert.Equal(t, drySource.RepoURL, receivedRequest.ApplicationSource.RepoURL)
+	assert.Equal(t, drySource.Path, receivedRequest.ApplicationSource.Path)
+	assert.Equal(t, drySource.TargetRevision, receivedRequest.ApplicationSource.TargetRevision)
+}
+
 func TestFormatAppConditions(t *testing.T) {
 	conditions := []argoappv1.ApplicationCondition{
 		{
@@ -944,6 +1053,120 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		db.EXPECT().GetClusterServersByName(mock.Anything, "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil).Maybe()
 		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1:6443").Return(&cluster, nil).Maybe()
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		assert.Empty(t, conditions)
+	})
+}
+
+func TestValidatePermissionsSourceHydrator(t *testing.T) {
+	t.Run("SyncSource repo not permitted in project", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        "https://github.com/org/dry-repo",
+					TargetRevision: "main",
+					Path:           "apps",
+				},
+				SyncSource: argoappv1.SyncSource{
+					RepoURL:      "https://github.com/org/sync-repo",
+					TargetBranch: "hydrated",
+					Path:         "manifests",
+				},
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Server:    "https://127.0.0.1:6443",
+				Namespace: "default",
+			},
+		}
+		proj := argoappv1.AppProject{
+			Spec: argoappv1.AppProjectSpec{
+				Destinations: []argoappv1.ApplicationDestination{
+					{Server: "*", Namespace: "*"},
+				},
+				// Only dry-repo is permitted, sync-repo is not
+				SourceRepos: []string{"https://github.com/org/dry-repo"},
+			},
+		}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil).Maybe()
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Contains(t, conditions[0].Message, "sync source repo https://github.com/org/sync-repo is not permitted")
+	})
+
+	t.Run("All different repos permitted in project", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        "https://github.com/org/dry-repo",
+					TargetRevision: "main",
+					Path:           "apps",
+				},
+				SyncSource: argoappv1.SyncSource{
+					RepoURL:      "https://github.com/org/sync-repo",
+					TargetBranch: "hydrated",
+					Path:         "manifests",
+				},
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Server:    "https://127.0.0.1:6443",
+				Namespace: "default",
+			},
+		}
+		proj := argoappv1.AppProject{
+			Spec: argoappv1.AppProjectSpec{
+				Destinations: []argoappv1.ApplicationDestination{
+					{Server: "*", Namespace: "*"},
+				},
+				// All repos are permitted
+				SourceRepos: []string{
+					"https://github.com/org/dry-repo",
+					"https://github.com/org/sync-repo",
+				},
+			},
+		}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil).Maybe()
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		assert.Empty(t, conditions)
+	})
+
+	t.Run("SyncSource uses DrySource repo by default - no extra validation needed", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        "https://github.com/org/dry-repo",
+					TargetRevision: "main",
+					Path:           "apps",
+				},
+				SyncSource: argoappv1.SyncSource{
+					// No RepoURL set, defaults to DrySource.RepoURL
+					TargetBranch: "hydrated",
+					Path:         "manifests",
+				},
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Server:    "https://127.0.0.1:6443",
+				Namespace: "default",
+			},
+		}
+		proj := argoappv1.AppProject{
+			Spec: argoappv1.AppProjectSpec{
+				Destinations: []argoappv1.ApplicationDestination{
+					{Server: "*", Namespace: "*"},
+				},
+				// Only dry-repo is permitted
+				SourceRepos: []string{"https://github.com/org/dry-repo"},
+			},
+		}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Empty(t, conditions)
