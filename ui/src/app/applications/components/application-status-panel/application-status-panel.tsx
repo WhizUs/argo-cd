@@ -14,9 +14,16 @@ import {
     HydrateOperationPhaseIcon,
     hydrationStatusMessage,
     getProgressiveSyncStatusColor,
-    getProgressiveSyncStatusIcon
+    getProgressiveSyncStatusIcon,
+    getAppLastSyncRepoURL,
+    getAppLastSyncRevision,
+    getConditionCategory,
+    HealthStatusIcon,
+    OperationState,
+    syncStatusMessage,
+    getAppDefaultSyncRevision,
+    getAppDefaultOperationSyncRevision
 } from '../utils';
-import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, getAppDefaultSyncRevision, getAppDefaultOperationSyncRevision} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 import * as utils from '../utils';
 import {COLORS} from '../../../shared/components/colors';
@@ -296,7 +303,12 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                         </a>
                         {appOperationState.syncResult && (appOperationState.syncResult.revision || appOperationState.syncResult.revisions) && (
                             <div className='application-status-panel__item-value__revision show-for-large'>
-                                to <Revision repoUrl={source.repoURL} revision={operationStateRevision} /> {getAppDefaultSyncRevisionExtra(application)}
+                                {' '}
+                                <Revision
+                                    repoUrl={getAppLastSyncRepoURL(application) || source.repoURL}
+                                    revision={getAppLastSyncRevision(application) || operationStateRevision}
+                                />{' '}
+                                {getAppDefaultSyncRevisionExtra(application)}
                             </div>
                         )}
                     </div>
