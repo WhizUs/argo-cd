@@ -995,13 +995,11 @@ export function hydrationStatusMessage(app: appModels.Application) {
     // The hydrated commit was created in the repo specified by GetHydrateToSource().RepoURL at hydration time,
     // which is stored in operationSyncSourceRepoURL (syncSource.repoURL || drySource.repoURL).
     const hydratedRepoURL = operationSyncSourceRepoURL;
-    
+
     // If the hydrated commit from the operation doesn't match the current sync revision, it means
     // the sync has moved to a newer commit since the hydration. In this case, we should display
     // the current sync revision instead of the stale hydration commit.
-    const commitToDisplay = (hydratedCommit && currentSyncRevision && hydratedCommit !== currentSyncRevision) 
-        ? currentSyncRevision 
-        : hydratedCommit;
+    const commitToDisplay = hydratedCommit && currentSyncRevision && hydratedCommit !== currentSyncRevision ? currentSyncRevision : hydratedCommit;
 
     switch (app.status.sourceHydrator.currentOperation.phase) {
         case appModels.HydrateOperationPhases.Hydrated:
@@ -1562,7 +1560,7 @@ export function getAppLastSyncRepoURL(app?: appModels.Application): string | nul
 
     const syncSourceRepoURL = app.spec.sourceHydrator.syncSource.repoURL;
     const drySourceRepoURL = app.spec.sourceHydrator.drySource.repoURL;
-    
+
     // If syncSource.repoURL is not set or same as drySource, use the hydrated repo URL
     if (!syncSourceRepoURL || syncSourceRepoURL === drySourceRepoURL) {
         return getAppHydratedRepoURL(app.spec);
@@ -1573,13 +1571,13 @@ export function getAppLastSyncRepoURL(app?: appModels.Application): string | nul
     // the operationState.syncResult.revision commit belongs to.
     const operationStateRevision = getAppDefaultOperationSyncRevision(app);
     const currentSyncRevision = getAppDefaultSyncRevision(app);
-    
+
     // If the operation state revision matches the current sync revision, it means
     // the last sync was recent and the commit is in the new repo (syncSource.repoURL)
     if (operationStateRevision && currentSyncRevision && operationStateRevision === currentSyncRevision) {
         return syncSourceRepoURL;
     }
-    
+
     // If revisions don't match, the operationState.syncResult.revision is from an old sync
     // that happened before syncSource.repoURL was added. That commit exists in the old repo.
     // Use drySource.repoURL (the old repo) for the old commit.
@@ -1598,7 +1596,7 @@ export function getAppLastSyncRevision(app?: appModels.Application): string {
     const drySourceRepoURL = app.spec.sourceHydrator.drySource.repoURL;
     const operationStateRevision = getAppDefaultOperationSyncRevision(app);
     const currentSyncRevision = getAppDefaultSyncRevision(app);
-    
+
     // If syncSource.repoURL is not set (was removed), and operationStateRevision doesn't match
     // currentSyncRevision, it means the old commit is from a different repo. Use currentSyncRevision
     // instead to avoid linking to a commit that doesn't exist in the current repo.
@@ -1607,7 +1605,7 @@ export function getAppLastSyncRevision(app?: appModels.Application): string {
             return currentSyncRevision;
         }
     }
-    
+
     // Otherwise, use the operationStateRevision as normal
     return operationStateRevision || '';
 }

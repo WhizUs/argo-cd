@@ -303,7 +303,12 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                         </a>
                         {appOperationState.syncResult && (appOperationState.syncResult.revision || appOperationState.syncResult.revisions) && (
                             <div className='application-status-panel__item-value__revision show-for-large'>
-                                to <Revision repoUrl={getAppLastSyncRepoURL(application) || source.repoURL} revision={getAppLastSyncRevision(application) || operationStateRevision} /> {getAppDefaultSyncRevisionExtra(application)}
+                                {' '}
+                                <Revision
+                                    repoUrl={getAppLastSyncRepoURL(application) || source.repoURL}
+                                    revision={getAppLastSyncRevision(application) || operationStateRevision}
+                                />{' '}
+                                {getAppDefaultSyncRevisionExtra(application)}
                             </div>
                         )}
                     </div>
