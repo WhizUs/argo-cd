@@ -2727,44 +2727,26 @@ func TestGetManifests_WithNoCache(t *testing.T) {
 }
 
 // TestGetManifests_WithSourceHydrator tests the GetManifests function with source hydrator configurations.
+// Note: GetManifests does not have sourceType support - it always uses the source from app.Spec.GetSource().
+// For hydrator apps, GetSource() returns the sync source (hydrated manifests location).
 func TestGetManifests_WithSourceHydrator(t *testing.T) {
 	const (
-		drySourceRepoURL  = "https://github.com/org/dry-source"
 		syncSourceRepoURL = "https://github.com/org/sync-source"
-		drySourcePath     = "apps/dry"
 		syncSourcePath    = "apps/sync"
-		drySHA            = "abc1234567890abcdef1234567890abcdef12345"
-		hydratedSHA       = "def1234567890abcdef1234567890abcdef12345"
 	)
 
-	t.Run("SourceHydrator with DrySHA revision uses DrySource config from CurrentOperation", func(t *testing.T) {
+	t.Run("GetManifests with SourceHydrator uses sync source from Spec", func(t *testing.T) {
 		testApp := newTestApp(func(app *v1alpha1.Application) {
 			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
 				DrySource: v1alpha1.DrySource{
-					RepoURL:        drySourceRepoURL,
-					Path:           drySourcePath,
+					RepoURL:        "https://github.com/org/dry-source",
+					Path:           "apps/dry",
 					TargetRevision: "main",
 				},
 				SyncSource: v1alpha1.SyncSource{
 					RepoURL:      syncSourceRepoURL,
 					TargetBranch: "env/test",
 					Path:         syncSourcePath,
-				},
-			}
-			app.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
-				CurrentOperation: &v1alpha1.HydrateOperation{
-					DrySHA:      drySHA,
-					HydratedSHA: hydratedSHA,
-					SourceHydrator: v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL: drySourceRepoURL,
-							Path:    drySourcePath,
-						},
-						SyncSource: v1alpha1.SyncSource{
-							RepoURL: syncSourceRepoURL,
-							Path:    syncSourcePath,
-						},
-					},
 				},
 			}
 		})
@@ -2779,93 +2761,28 @@ func TestGetManifests_WithSourceHydrator(t *testing.T) {
 		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
 
 		_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
-			Name:     &testApp.Name,
-			Revision: ptr.To(drySHA),
+			Name: &testApp.Name,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, capturedRequest)
-		assert.Equal(t, drySourceRepoURL, capturedRequest.Repo.Repo)
-		assert.Equal(t, drySourcePath, capturedRequest.ApplicationSource.Path)
-	})
-
-	t.Run("SourceHydrator with HydratedSHA revision uses SyncSource.RepoURL from CurrentOperation", func(t *testing.T) {
-		testApp := newTestApp(func(app *v1alpha1.Application) {
-			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{
-					RepoURL:        drySourceRepoURL,
-					Path:           drySourcePath,
-					TargetRevision: "main",
-				},
-				SyncSource: v1alpha1.SyncSource{
-					RepoURL:      syncSourceRepoURL,
-					TargetBranch: "env/test",
-					Path:         syncSourcePath,
-				},
-			}
-			app.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
-				CurrentOperation: &v1alpha1.HydrateOperation{
-					DrySHA:      drySHA,
-					HydratedSHA: hydratedSHA,
-					SourceHydrator: v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL: drySourceRepoURL,
-							Path:    drySourcePath,
-						},
-						SyncSource: v1alpha1.SyncSource{
-							RepoURL: syncSourceRepoURL,
-							Path:    syncSourcePath,
-						},
-					},
-				},
-			}
-		})
-		appServer := newTestAppServer(t, testApp)
-
-		var capturedRequest *apiclient.ManifestRequest
-		mockRepoServiceClient := mocks.NewRepoServerServiceClient(t)
-		mockRepoServiceClient.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(mr *apiclient.ManifestRequest) bool {
-			capturedRequest = mr
-			return true
-		})).Return(&apiclient.ManifestResponse{}, nil)
-		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
-
-		_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
-			Name:     &testApp.Name,
-			Revision: ptr.To(hydratedSHA),
-		})
-		require.NoError(t, err)
-		require.NotNil(t, capturedRequest)
+		// GetManifests uses app.Spec.GetSource() which returns the sync source for hydrator apps
 		assert.Equal(t, syncSourceRepoURL, capturedRequest.Repo.Repo)
 		assert.Equal(t, syncSourcePath, capturedRequest.ApplicationSource.Path)
 	})
 
-	t.Run("SourceHydrator with HydratedSHA revision falls back to DrySource.RepoURL when SyncSource.RepoURL is empty", func(t *testing.T) {
+	t.Run("GetManifests with SourceHydrator falls back to DrySource.RepoURL when SyncSource.RepoURL is empty", func(t *testing.T) {
+		drySourceRepoURL := "https://github.com/org/dry-source"
 		testApp := newTestApp(func(app *v1alpha1.Application) {
 			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
 				DrySource: v1alpha1.DrySource{
 					RepoURL:        drySourceRepoURL,
-					Path:           drySourcePath,
+					Path:           "apps/dry",
 					TargetRevision: "main",
 				},
 				SyncSource: v1alpha1.SyncSource{
+					// No RepoURL - should fall back to DrySource.RepoURL
 					TargetBranch: "env/test",
 					Path:         syncSourcePath,
-				},
-			}
-			app.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
-				CurrentOperation: &v1alpha1.HydrateOperation{
-					DrySHA:      drySHA,
-					HydratedSHA: hydratedSHA,
-					SourceHydrator: v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL: drySourceRepoURL,
-							Path:    drySourcePath,
-						},
-						SyncSource: v1alpha1.SyncSource{
-							RepoURL: "", // Empty - should fall back to DrySource.RepoURL
-							Path:    syncSourcePath,
-						},
-					},
 				},
 			}
 		})
@@ -2880,258 +2797,13 @@ func TestGetManifests_WithSourceHydrator(t *testing.T) {
 		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
 
 		_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
-			Name:     &testApp.Name,
-			Revision: ptr.To(hydratedSHA),
+			Name: &testApp.Name,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, capturedRequest)
+		// When SyncSource.RepoURL is empty, GetSyncSource() falls back to DrySource.RepoURL
 		assert.Equal(t, drySourceRepoURL, capturedRequest.Repo.Repo)
 		assert.Equal(t, syncSourcePath, capturedRequest.ApplicationSource.Path)
-	})
-
-	t.Run("SourceHydrator with DrySHA revision uses LastSuccessfulOperation when CurrentOperation doesn't match", func(t *testing.T) {
-		lastSuccessDrySHA := "111aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa111"
-		lastSuccessHydratedSHA := "222bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb222"
-		lastSuccessDryRepoURL := "https://github.com/org/last-dry-source"
-		lastSuccessDryPath := "apps/last-dry"
-
-		testApp := newTestApp(func(app *v1alpha1.Application) {
-			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{
-					RepoURL:        drySourceRepoURL,
-					Path:           drySourcePath,
-					TargetRevision: "main",
-				},
-				SyncSource: v1alpha1.SyncSource{
-					TargetBranch: "env/test",
-					Path:         syncSourcePath,
-				},
-			}
-			app.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
-				CurrentOperation: &v1alpha1.HydrateOperation{
-					DrySHA:      drySHA, // Different SHA
-					HydratedSHA: hydratedSHA,
-					SourceHydrator: v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL: drySourceRepoURL,
-							Path:    drySourcePath,
-						},
-					},
-				},
-				LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
-					DrySHA:      lastSuccessDrySHA, // This matches our query
-					HydratedSHA: lastSuccessHydratedSHA,
-					SourceHydrator: v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL: lastSuccessDryRepoURL,
-							Path:    lastSuccessDryPath,
-						},
-					},
-				},
-			}
-		})
-		appServer := newTestAppServer(t, testApp)
-
-		var capturedRequest *apiclient.ManifestRequest
-		mockRepoServiceClient := mocks.NewRepoServerServiceClient(t)
-		mockRepoServiceClient.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(mr *apiclient.ManifestRequest) bool {
-			capturedRequest = mr
-			return true
-		})).Return(&apiclient.ManifestResponse{}, nil)
-		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
-
-		_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
-			Name:     &testApp.Name,
-			Revision: ptr.To(lastSuccessDrySHA),
-		})
-		require.NoError(t, err)
-		require.NotNil(t, capturedRequest)
-		assert.Equal(t, lastSuccessDryRepoURL, capturedRequest.Repo.Repo)
-		assert.Equal(t, lastSuccessDryPath, capturedRequest.ApplicationSource.Path)
-	})
-
-	t.Run("SourceHydrator with HydratedSHA revision uses LastSuccessfulOperation with SyncSource.RepoURL", func(t *testing.T) {
-		lastSuccessDrySHA := "111aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa111"
-		lastSuccessHydratedSHA := "222bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb222"
-		lastSuccessSyncRepoURL := "https://github.com/org/last-sync-source"
-		lastSuccessSyncPath := "apps/last-sync"
-
-		testApp := newTestApp(func(app *v1alpha1.Application) {
-			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{
-					RepoURL:        drySourceRepoURL,
-					Path:           drySourcePath,
-					TargetRevision: "main",
-				},
-				SyncSource: v1alpha1.SyncSource{
-					RepoURL:      syncSourceRepoURL,
-					TargetBranch: "env/test",
-					Path:         syncSourcePath,
-				},
-			}
-			app.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
-				CurrentOperation: &v1alpha1.HydrateOperation{
-					DrySHA:      drySHA, // Different SHA
-					HydratedSHA: hydratedSHA,
-					SourceHydrator: v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL: drySourceRepoURL,
-							Path:    drySourcePath,
-						},
-					},
-				},
-				LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
-					DrySHA:      lastSuccessDrySHA,
-					HydratedSHA: lastSuccessHydratedSHA, // This matches our query
-					SourceHydrator: v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL: drySourceRepoURL,
-							Path:    drySourcePath,
-						},
-						SyncSource: v1alpha1.SyncSource{
-							RepoURL: lastSuccessSyncRepoURL,
-							Path:    lastSuccessSyncPath,
-						},
-					},
-				},
-			}
-		})
-		appServer := newTestAppServer(t, testApp)
-
-		var capturedRequest *apiclient.ManifestRequest
-		mockRepoServiceClient := mocks.NewRepoServerServiceClient(t)
-		mockRepoServiceClient.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(mr *apiclient.ManifestRequest) bool {
-			capturedRequest = mr
-			return true
-		})).Return(&apiclient.ManifestResponse{}, nil)
-		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
-
-		_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
-			Name:     &testApp.Name,
-			Revision: ptr.To(lastSuccessHydratedSHA),
-		})
-		require.NoError(t, err)
-		require.NotNil(t, capturedRequest)
-		assert.Equal(t, lastSuccessSyncRepoURL, capturedRequest.Repo.Repo)
-		assert.Equal(t, lastSuccessSyncPath, capturedRequest.ApplicationSource.Path)
-	})
-
-	t.Run("SourceHydrator with HydratedSHA revision uses LastSuccessfulOperation fallback to DrySource.RepoURL", func(t *testing.T) {
-		lastSuccessDrySHA := "111aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa111"
-		lastSuccessHydratedSHA := "222bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb222"
-		lastSuccessDryRepoURL := "https://github.com/org/last-dry-source"
-		lastSuccessSyncPath := "apps/last-sync"
-
-		testApp := newTestApp(func(app *v1alpha1.Application) {
-			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{
-					RepoURL:        drySourceRepoURL,
-					Path:           drySourcePath,
-					TargetRevision: "main",
-				},
-				SyncSource: v1alpha1.SyncSource{
-					TargetBranch: "env/test",
-					Path:         syncSourcePath,
-				},
-			}
-			app.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
-				CurrentOperation: &v1alpha1.HydrateOperation{
-					DrySHA:      drySHA, // Different SHA
-					HydratedSHA: hydratedSHA,
-					SourceHydrator: v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL: drySourceRepoURL,
-							Path:    drySourcePath,
-						},
-					},
-				},
-				LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
-					DrySHA:      lastSuccessDrySHA,
-					HydratedSHA: lastSuccessHydratedSHA, // This matches our query
-					SourceHydrator: v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL: lastSuccessDryRepoURL,
-							Path:    drySourcePath,
-						},
-						SyncSource: v1alpha1.SyncSource{
-							RepoURL: "", // Empty - should fall back to DrySource.RepoURL
-							Path:    lastSuccessSyncPath,
-						},
-					},
-				},
-			}
-		})
-		appServer := newTestAppServer(t, testApp)
-
-		var capturedRequest *apiclient.ManifestRequest
-		mockRepoServiceClient := mocks.NewRepoServerServiceClient(t)
-		mockRepoServiceClient.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(mr *apiclient.ManifestRequest) bool {
-			capturedRequest = mr
-			return true
-		})).Return(&apiclient.ManifestResponse{}, nil)
-		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
-
-		_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
-			Name:     &testApp.Name,
-			Revision: ptr.To(lastSuccessHydratedSHA),
-		})
-		require.NoError(t, err)
-		require.NotNil(t, capturedRequest)
-		assert.Equal(t, lastSuccessDryRepoURL, capturedRequest.Repo.Repo)
-		assert.Equal(t, lastSuccessSyncPath, capturedRequest.ApplicationSource.Path)
-	})
-
-	t.Run("SourceHydrator with non-SHA revision does not trigger source hydrator logic", func(t *testing.T) {
-		testApp := newTestApp(func(app *v1alpha1.Application) {
-			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{
-					RepoURL:        drySourceRepoURL,
-					Path:           drySourcePath,
-					TargetRevision: "main",
-				},
-				SyncSource: v1alpha1.SyncSource{
-					RepoURL:      syncSourceRepoURL,
-					TargetBranch: "env/test",
-					Path:         syncSourcePath,
-				},
-			}
-			app.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
-				CurrentOperation: &v1alpha1.HydrateOperation{
-					DrySHA:      drySHA,
-					HydratedSHA: hydratedSHA,
-					SourceHydrator: v1alpha1.SourceHydrator{
-						DrySource: v1alpha1.DrySource{
-							RepoURL: drySourceRepoURL,
-							Path:    drySourcePath,
-						},
-						SyncSource: v1alpha1.SyncSource{
-							RepoURL: syncSourceRepoURL,
-							Path:    syncSourcePath,
-						},
-					},
-				},
-			}
-		})
-		appServer := newTestAppServer(t, testApp)
-
-		var capturedRequest *apiclient.ManifestRequest
-		mockRepoServiceClient := mocks.NewRepoServerServiceClient(t)
-		mockRepoServiceClient.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(mr *apiclient.ManifestRequest) bool {
-			capturedRequest = mr
-			return true
-		})).Return(&apiclient.ManifestResponse{}, nil)
-		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
-
-		_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
-			Name:     &testApp.Name,
-			Revision: ptr.To("main"), // Non-SHA revision
-		})
-		require.NoError(t, err)
-		require.NotNil(t, capturedRequest)
-		// When source hydrator is configured and revision is non-SHA, the source hydrator
-		// repo resolution logic is NOT triggered - it uses the default GetSource() which
-		// returns the sync source for hydrator apps
-		assert.Equal(t, syncSourceRepoURL, capturedRequest.Repo.Repo)
 	})
 }
 
@@ -3769,153 +3441,6 @@ func TestGetAppRefresh_HardRefresh_WithSourceHydrator(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, capturedQuery)
 		assert.Equal(t, drySourceRepoURL, capturedQuery.Repo.Repo)
-
-		select {
-		case <-ch:
-			assert.Equal(t, int32(1), atomic.LoadInt32(&patched))
-		case <-time.After(10 * time.Second):
-			assert.Fail(t, "Out of time ( 10 seconds )")
-		}
-	})
-
-	t.Run("SourceHydrator with sourceType=hydrated uses SyncSource.RepoURL from Spec", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(t.Context())
-		defer cancel()
-		testApp := newTestApp(func(app *v1alpha1.Application) {
-			app.ResourceVersion = "1"
-			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{
-					RepoURL:        drySourceRepoURL,
-					Path:           drySourcePath,
-					TargetRevision: "main",
-				},
-				SyncSource: v1alpha1.SyncSource{
-					RepoURL:      syncSourceRepoURL,
-					TargetBranch: "env/test",
-					Path:         syncSourcePath,
-				},
-			}
-		})
-		appServer := newTestAppServer(t, testApp)
-
-		var capturedQuery *apiclient.RepoServerAppDetailsQuery
-		mockRepoServiceClient := &mocks.RepoServerServiceClient{}
-		mockRepoServiceClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(q *apiclient.RepoServerAppDetailsQuery) bool {
-			capturedQuery = q
-			return true
-		})).Return(&apiclient.RepoAppDetailsResponse{}, nil)
-		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
-
-		var patched int32
-		ch := make(chan string, 1)
-		go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
-
-		_, err := appServer.Get(t.Context(), &application.ApplicationQuery{
-			Name:       &testApp.Name,
-			Refresh:    ptr.To(string(v1alpha1.RefreshTypeHard)),
-			SourceType: ptr.To("hydrated"),
-		})
-		require.NoError(t, err)
-		require.NotNil(t, capturedQuery)
-		assert.Equal(t, syncSourceRepoURL, capturedQuery.Repo.Repo)
-
-		select {
-		case <-ch:
-			assert.Equal(t, int32(1), atomic.LoadInt32(&patched))
-		case <-time.After(10 * time.Second):
-			assert.Fail(t, "Out of time ( 10 seconds )")
-		}
-	})
-
-	t.Run("SourceHydrator with sourceType=hydrated falls back to DrySource.RepoURL when SyncSource.RepoURL is empty", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(t.Context())
-		defer cancel()
-		testApp := newTestApp(func(app *v1alpha1.Application) {
-			app.ResourceVersion = "1"
-			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{
-					RepoURL:        drySourceRepoURL,
-					Path:           drySourcePath,
-					TargetRevision: "main",
-				},
-				SyncSource: v1alpha1.SyncSource{
-					TargetBranch: "env/test",
-					Path:         syncSourcePath,
-				},
-			}
-		})
-		appServer := newTestAppServer(t, testApp)
-
-		var capturedQuery *apiclient.RepoServerAppDetailsQuery
-		mockRepoServiceClient := &mocks.RepoServerServiceClient{}
-		mockRepoServiceClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(q *apiclient.RepoServerAppDetailsQuery) bool {
-			capturedQuery = q
-			return true
-		})).Return(&apiclient.RepoAppDetailsResponse{}, nil)
-		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
-
-		var patched int32
-		ch := make(chan string, 1)
-		go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
-
-		_, err := appServer.Get(t.Context(), &application.ApplicationQuery{
-			Name:       &testApp.Name,
-			Refresh:    ptr.To(string(v1alpha1.RefreshTypeHard)),
-			SourceType: ptr.To("hydrated"),
-		})
-		require.NoError(t, err)
-		require.NotNil(t, capturedQuery)
-		assert.Equal(t, drySourceRepoURL, capturedQuery.Repo.Repo)
-
-		select {
-		case <-ch:
-			assert.Equal(t, int32(1), atomic.LoadInt32(&patched))
-		case <-time.After(10 * time.Second):
-			assert.Fail(t, "Out of time ( 10 seconds )")
-		}
-	})
-
-	t.Run("SourceHydrator with no Status operations falls back to Spec SyncSource.RepoURL", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(t.Context())
-		defer cancel()
-		testApp := newTestApp(func(app *v1alpha1.Application) {
-			app.ResourceVersion = "1"
-			app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{
-					RepoURL:        drySourceRepoURL,
-					Path:           drySourcePath,
-					TargetRevision: "main",
-				},
-				SyncSource: v1alpha1.SyncSource{
-					RepoURL:      syncSourceRepoURL,
-					TargetBranch: "env/test",
-					Path:         syncSourcePath,
-				},
-			}
-			// No Status operations
-			app.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{}
-		})
-		appServer := newTestAppServer(t, testApp)
-
-		var capturedQuery *apiclient.RepoServerAppDetailsQuery
-		mockRepoServiceClient := &mocks.RepoServerServiceClient{}
-		mockRepoServiceClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(q *apiclient.RepoServerAppDetailsQuery) bool {
-			capturedQuery = q
-			return true
-		})).Return(&apiclient.RepoAppDetailsResponse{}, nil)
-		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
-
-		var patched int32
-		ch := make(chan string, 1)
-		go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
-
-		_, err := appServer.Get(t.Context(), &application.ApplicationQuery{
-			Name:    &testApp.Name,
-			Refresh: ptr.To(string(v1alpha1.RefreshTypeHard)),
-		})
-		require.NoError(t, err)
-		require.NotNil(t, capturedQuery)
-		assert.Equal(t, syncSourceRepoURL, capturedQuery.Repo.Repo)
 
 		select {
 		case <-ch:
